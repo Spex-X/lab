@@ -1,11 +1,7 @@
--- ================================================
 -- SISTEMA DE RIFAS - SETUP COMPLETO
--- Execute este arquivo ÚNICO no SQL Editor do Supabase
--- ================================================
+-- Execute este arquivo UNICO no SQL Editor do Supabase
 
--- ================================================
 -- 1. TABELAS PRINCIPAIS
--- ================================================
 
 -- Tabela de perfis (estende auth.users)
 CREATE TABLE IF NOT EXISTS profiles (
@@ -13,7 +9,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   email text,
   full_name text,
   avatar_url text,
-  role text DEFAULT 'user', -- user, admin
+  role text DEFAULT 'user',
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   PRIMARY KEY (id)
 );
@@ -30,7 +26,7 @@ CREATE TABLE IF NOT EXISTS raffles (
   ticket_price numeric NOT NULL,
   available_tickets integer NOT NULL,
   draw_date timestamp with time zone,
-  status text DEFAULT 'active', -- active, paused, completed, cancelled
+  status text DEFAULT 'active',
   created_by uuid REFERENCES profiles(id),
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -41,7 +37,7 @@ CREATE TABLE IF NOT EXISTS orders (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
   raffle_id uuid REFERENCES raffles(id) ON DELETE CASCADE,
-  status text DEFAULT 'pending', -- pending, paid, expired, cancelled
+  status text DEFAULT 'pending',
   quantity integer NOT NULL,
   total_amount numeric NOT NULL,
   mercado_pago_payment_id text,
@@ -59,7 +55,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   raffle_id uuid REFERENCES raffles(id) ON DELETE CASCADE,
   ticket_number integer NOT NULL,
-  status text DEFAULT 'available', -- available, sold, reserved
+  status text DEFAULT 'available',
   buyer_id uuid REFERENCES profiles(id),
   purchased_at timestamp with time zone,
   order_id uuid REFERENCES orders(id) ON DELETE SET NULL,
@@ -68,20 +64,18 @@ CREATE TABLE IF NOT EXISTS tickets (
   UNIQUE(raffle_id, ticket_number)
 );
 
--- Tabela de transações
+-- Tabela de transacoes
 CREATE TABLE IF NOT EXISTS transactions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   ticket_id uuid REFERENCES tickets(id) ON DELETE CASCADE,
   buyer_id uuid REFERENCES profiles(id),
   amount numeric NOT NULL,
-  status text DEFAULT 'pending', -- pending, completed, failed
+  status text DEFAULT 'pending',
   payment_method text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ================================================
--- 2. ÍNDICES PARA PERFORMANCE
--- ================================================
+-- 2. INDICES PARA PERFORMANCE
 
 CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_buyer_id ON tickets(buyer_id);
@@ -96,9 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_mercado_pago_payment_id ON orders(mercado_
 CREATE INDEX IF NOT EXISTS idx_orders_mercado_pago_external_reference ON orders(mercado_pago_external_reference);
 CREATE INDEX IF NOT EXISTS idx_orders_expires_at ON orders(expires_at);
 
--- ================================================
 -- 3. ROW LEVEL SECURITY
--- ================================================
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE raffles ENABLE ROW LEVEL SECURITY;
@@ -106,7 +98,6 @@ ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
--- Políticas RLS básicas
 CREATE POLICY IF NOT EXISTS "Users can view all profiles" ON profiles FOR SELECT USING (true);
 CREATE POLICY IF NOT EXISTS "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
@@ -124,9 +115,7 @@ CREATE POLICY IF NOT EXISTS "Users can view own orders" ON orders FOR SELECT USI
 CREATE POLICY IF NOT EXISTS "Users can create orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY IF NOT EXISTS "Users can update own orders" ON orders FOR UPDATE USING (auth.uid() = user_id);
 
--- ================================================
--- 4. TRIGGERS AUTOMÁTICOS
--- ================================================
+-- 4. TRIGGERS AUTOMATICOS
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS trigger AS $$
@@ -142,11 +131,8 @@ CREATE TRIGGER IF NOT EXISTS update_raffles_updated_at BEFORE UPDATE ON raffles
 CREATE TRIGGER IF NOT EXISTS update_orders_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ================================================
--- 5. FUNÇÕES RPC
--- ================================================
+-- 5. FUNCOES RPC
 
--- Função para reserva atômica de bilhetes
 CREATE OR REPLACE FUNCTION reserve_tickets_atomic(
   p_raffle_id uuid,
   p_user_id uuid,
@@ -164,7 +150,6 @@ DECLARE
   v_ticket record;
   v_ticket_ids uuid[];
 BEGIN
-  -- Validar rifa
   SELECT * INTO v_raffle
   FROM raffles
   WHERE id = p_raffle_id AND status = 'active';
@@ -173,17 +158,14 @@ BEGIN
     RETURN json_build_object('error', 'Rifa não encontrada ou não está ativa');
   END IF;
 
-  -- Validar usuário
   IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = p_user_id) THEN
     RETURN json_build_object('error', 'Usuário não encontrado');
   END IF;
 
-  -- Validar que não há números duplicados
   IF array_length(p_ticket_numbers, 1) != array_length(array(SELECT DISTINCT unnest(p_ticket_numbers)), 1) THEN
     RETURN json_build_object('error', 'Números de bilhetes duplicados');
   END IF;
 
-  -- Verificar que todos os tickets pertencem à rifa e estão available
   FOR v_ticket IN
     SELECT id, ticket_number, status
     FROM tickets
@@ -196,17 +178,14 @@ BEGIN
     v_ticket_ids := array_append(v_ticket_ids, v_ticket.id);
   END LOOP;
 
-  -- Verificar que encontrou todos os tickets solicitados
   IF array_length(v_ticket_ids, 1) != array_length(p_ticket_numbers, 1) THEN
     RETURN json_build_object('error', 'Um ou mais bilhetes não pertencem a esta rifa');
   END IF;
 
-  -- Calcular valores
   v_ticket_price := v_raffle.ticket_price;
   v_quantity := array_length(p_ticket_numbers, 1);
   v_total_amount := v_ticket_price * v_quantity;
 
-  -- Criar pedido
   INSERT INTO orders (
     user_id,
     raffle_id,
@@ -223,7 +202,6 @@ BEGIN
     timezone('utc'::text, now()) + INTERVAL '15 minutes'
   ) RETURNING id INTO v_order_id;
 
-  -- Reservar bilhetes
   UPDATE tickets
   SET
     status = 'reserved',
@@ -232,7 +210,6 @@ BEGIN
     reserved_until = timezone('utc'::text, now()) + INTERVAL '15 minutes'
   WHERE id = ANY(v_ticket_ids);
 
-  -- Retornar pedido criado
   RETURN json_build_object(
     'success', true,
     'order_id', v_order_id,
@@ -248,13 +225,11 @@ EXCEPTION
 END;
 $$;
 
--- Função para liberar bilhetes de pedidos expirados
 CREATE OR REPLACE FUNCTION release_expired_tickets()
 RETURNS void
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Atualizar bilhetes de pedidos expirados
   UPDATE tickets
   SET
     status = 'available',
@@ -267,7 +242,6 @@ BEGIN
     AND expires_at < timezone('utc'::text, now())
   );
 
-  -- Marcar pedidos como expirados
   UPDATE orders
   SET status = 'expired'
   WHERE status = 'pending'
@@ -275,7 +249,6 @@ BEGIN
 END;
 $$;
 
--- Função para confirmar pagamento
 CREATE OR REPLACE FUNCTION confirm_order_payment(
   p_order_id uuid,
   p_payment_id text,
@@ -288,9 +261,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   v_order record;
-  v_ticket_count integer;
 BEGIN
-  -- Buscar pedido
   SELECT * INTO v_order
   FROM orders
   WHERE id = p_order_id AND status = 'pending';
@@ -299,12 +270,10 @@ BEGIN
     RETURN json_build_object('error', 'Pedido não encontrado ou não está pendente');
   END IF;
 
-  -- Verificar se não expirou
   IF v_order.expires_at < timezone('utc'::text, now()) THEN
     RETURN json_build_object('error', 'Pedido expirado');
   END IF;
 
-  -- Atualizar pedido com dados do pagamento
   UPDATE orders
   SET
     status = 'paid',
@@ -315,7 +284,6 @@ BEGIN
     paid_at = timezone('utc'::text, now())
   WHERE id = p_order_id;
 
-  -- Atualizar bilhetes para sold
   UPDATE tickets
   SET
     status = 'sold',
@@ -323,14 +291,12 @@ BEGIN
     reserved_until = NULL
   WHERE order_id = p_order_id;
 
-  -- Atualizar bilhetes disponíveis na rifa
   UPDATE raffles
   SET available_tickets = available_tickets - (
     SELECT count(*) FROM tickets WHERE order_id = p_order_id
   )
   WHERE id = v_order.raffle_id;
 
-  -- Criar transações para cada bilhete
   INSERT INTO transactions (ticket_id, buyer_id, amount, status, payment_method)
   SELECT
     t.id,
@@ -353,7 +319,6 @@ EXCEPTION
 END;
 $$;
 
--- Função para obter estatísticas da rifa
 CREATE OR REPLACE FUNCTION get_raffle_stats(p_raffle_id uuid)
 RETURNS json
 LANGUAGE plpgsql
@@ -374,7 +339,6 @@ BEGIN
 END;
 $$;
 
--- Função para promover usuário a admin
 CREATE OR REPLACE FUNCTION promote_to_admin(p_user_id uuid)
 RETURNS json
 LANGUAGE plpgsql
@@ -393,7 +357,6 @@ EXCEPTION
 END;
 $$;
 
--- Função para remover role admin
 CREATE OR REPLACE FUNCTION remove_admin_role(p_user_id uuid)
 RETURNS json
 LANGUAGE plpgsql
@@ -412,17 +375,13 @@ EXCEPTION
 END;
 $$;
 
--- ================================================
--- 6. PROMOVER USUÁRIO A ADMIN
--- ================================================
+-- 6. PROMOVER USUARIO A ADMIN
 
--- Substitua pelo email do usuário que deseja promover
 DO $$
 DECLARE
-  v_user_email text := 'jhonne.af@gmail.com'; -- ALTERE ESTE EMAIL
+  v_user_email text := 'jhonne.af@gmail.com';
   v_user_id uuid;
 BEGIN
-  -- Buscar o ID do usuário pelo email
   SELECT id INTO v_user_id
   FROM auth.users
   WHERE email = v_user_email;
@@ -431,7 +390,6 @@ BEGIN
     RAISE EXCEPTION 'Usuário com email % não encontrado. Crie o usuário primeiro via interface do sistema.', v_user_email;
   END IF;
 
-  -- Atualizar ou criar perfil com role admin
   INSERT INTO profiles (id, email, full_name, role)
   VALUES (v_user_id, v_user_email, 'Administrador', 'admin')
   ON CONFLICT (id) DO UPDATE SET
@@ -441,19 +399,14 @@ BEGIN
   RAISE NOTICE 'Usuário % promovido a admin com sucesso!', v_user_email;
 END $$;
 
--- ================================================
--- 7. VERIFICAÇÃO
--- ================================================
+-- 7. VERIFICACAO
 
--- Verificar se foi promovido
 SELECT * FROM profiles WHERE role = 'admin';
 
--- Verificar todas as tabelas
 SELECT table_name FROM information_schema.tables 
 WHERE table_schema = 'public' 
 ORDER BY table_name;
 
--- Verificar funções RPC
 SELECT routine_name FROM information_schema.routines 
 WHERE routine_schema = 'public' 
 AND routine_type = 'FUNCTION';
