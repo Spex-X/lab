@@ -1,9 +1,3 @@
--- SISTEMA DE RIFAS - SETUP COMPLETO
--- Execute este arquivo UNICO no SQL Editor do Supabase
-
--- 1. TABELAS PRINCIPAIS
-
--- Tabela de perfis (estende auth.users)
 CREATE TABLE IF NOT EXISTS profiles (
   id uuid REFERENCES auth.users ON DELETE CASCADE,
   email text,
@@ -14,7 +8,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   PRIMARY KEY (id)
 );
 
--- Tabela de rifas
 CREATE TABLE IF NOT EXISTS raffles (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title text NOT NULL,
@@ -32,7 +25,6 @@ CREATE TABLE IF NOT EXISTS raffles (
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Tabela de pedidos
 CREATE TABLE IF NOT EXISTS orders (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
@@ -50,7 +42,6 @@ CREATE TABLE IF NOT EXISTS orders (
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Tabela de bilhetes
 CREATE TABLE IF NOT EXISTS tickets (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   raffle_id uuid REFERENCES raffles(id) ON DELETE CASCADE,
@@ -64,7 +55,6 @@ CREATE TABLE IF NOT EXISTS tickets (
   UNIQUE(raffle_id, ticket_number)
 );
 
--- Tabela de transacoes
 CREATE TABLE IF NOT EXISTS transactions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   ticket_id uuid REFERENCES tickets(id) ON DELETE CASCADE,
@@ -74,8 +64,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   payment_method text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-
--- 2. INDICES PARA PERFORMANCE
 
 CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_buyer_id ON tickets(buyer_id);
@@ -90,32 +78,47 @@ CREATE INDEX IF NOT EXISTS idx_orders_mercado_pago_payment_id ON orders(mercado_
 CREATE INDEX IF NOT EXISTS idx_orders_mercado_pago_external_reference ON orders(mercado_pago_external_reference);
 CREATE INDEX IF NOT EXISTS idx_orders_expires_at ON orders(expires_at);
 
--- 3. ROW LEVEL SECURITY
-
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE raffles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can view all profiles" ON profiles FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can view all profiles" ON profiles;
+CREATE POLICY "Users can view all profiles" ON profiles FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "Anyone can view active raffles" ON raffles FOR SELECT USING (status = 'active');
-CREATE POLICY IF NOT EXISTS "Users can create raffles" ON raffles FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY IF NOT EXISTS "Creators can update their raffles" ON raffles FOR UPDATE USING (auth.uid() = created_by);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY IF NOT EXISTS "Anyone can view tickets" ON tickets FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "Users can buy tickets" ON tickets FOR UPDATE USING (auth.uid() = buyer_id OR status = 'available');
+DROP POLICY IF EXISTS "Anyone can view active raffles" ON raffles;
+CREATE POLICY "Anyone can view active raffles" ON raffles FOR SELECT USING (status = 'active');
 
-CREATE POLICY IF NOT EXISTS "Users can view own transactions" ON transactions FOR SELECT USING (auth.uid() = buyer_id);
-CREATE POLICY IF NOT EXISTS "Users can create transactions" ON transactions FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+DROP POLICY IF EXISTS "Users can create raffles" ON raffles;
+CREATE POLICY "Users can create raffles" ON raffles FOR INSERT WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY IF NOT EXISTS "Users can view own orders" ON orders FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Users can create orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Users can update own orders" ON orders FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Creators can update their raffles" ON raffles;
+CREATE POLICY "Creators can update their raffles" ON raffles FOR UPDATE USING (auth.uid() = created_by);
 
--- 4. TRIGGERS AUTOMATICOS
+DROP POLICY IF EXISTS "Anyone can view tickets" ON tickets;
+CREATE POLICY "Anyone can view tickets" ON tickets FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can buy tickets" ON tickets;
+CREATE POLICY "Users can buy tickets" ON tickets FOR UPDATE USING (auth.uid() = buyer_id OR status = 'available');
+
+DROP POLICY IF EXISTS "Users can view own transactions" ON transactions;
+CREATE POLICY "Users can view own transactions" ON transactions FOR SELECT USING (auth.uid() = buyer_id);
+
+DROP POLICY IF EXISTS "Users can create transactions" ON transactions;
+CREATE POLICY "Users can create transactions" ON transactions FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+
+DROP POLICY IF EXISTS "Users can view own orders" ON orders;
+CREATE POLICY "Users can view own orders" ON orders FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create orders" ON orders;
+CREATE POLICY "Users can create orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own orders" ON orders;
+CREATE POLICY "Users can update own orders" ON orders FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS trigger AS $$
@@ -125,13 +128,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS update_raffles_updated_at BEFORE UPDATE ON raffles
+DROP TRIGGER IF EXISTS update_raffles_updated_at ON raffles;
+CREATE TRIGGER update_raffles_updated_at BEFORE UPDATE ON raffles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER IF NOT EXISTS update_orders_updated_at BEFORE UPDATE ON orders
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- 5. FUNCOES RPC
 
 CREATE OR REPLACE FUNCTION reserve_tickets_atomic(
   p_raffle_id uuid,
@@ -375,8 +378,6 @@ EXCEPTION
 END;
 $$;
 
--- 6. PROMOVER USUARIO A ADMIN
-
 DO $$
 DECLARE
   v_user_email text := 'jhonne.af@gmail.com';
@@ -398,8 +399,6 @@ BEGIN
 
   RAISE NOTICE 'Usuário % promovido a admin com sucesso!', v_user_email;
 END $$;
-
--- 7. VERIFICACAO
 
 SELECT * FROM profiles WHERE role = 'admin';
 
