@@ -26,13 +26,27 @@ interface Ticket {
   buyer_id: string | null
 }
 
+interface Order {
+  id: string
+  status: string
+  quantity: number
+  total_amount: number
+  expires_at: string
+  pix_qr_code: string | null
+  pix_copy_paste: string | null
+  mercado_pago_payment_id: string | null
+}
+
 export default function RaffleDetailPage() {
   const [raffle, setRaffle] = useState<Raffle | null>(null)
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [selectedTickets, setSelectedTickets] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
-  const [buying, setBuying] = useState(false)
+  const [creatingOrder, setCreatingOrder] = useState(false)
   const [error, setError] = useState('')
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'expired' | 'checking'>('pending')
   const params = useParams()
   const router = useRouter()
   const supabase = createClient()
@@ -40,6 +54,14 @@ export default function RaffleDetailPage() {
   useEffect(() => {
     loadRaffle()
   }, [params.id])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (currentOrder && paymentStatus === 'pending') {
+      interval = setInterval(checkPaymentStatus, 5000) // Verificar a cada 5 segundos
+    }
+    return () => clearInterval(interval)
+  }, [currentOrder, paymentStatus])
 
   const loadRaffle = async () => {
     try {
@@ -77,80 +99,113 @@ export default function RaffleDetailPage() {
     )
   }
 
-  const handleBuyTickets = async () => {
+  const handleCreateOrder = async () => {
     if (selectedTickets.length === 0) {
       setError('Selecione pelo menos um bilhete')
       return
     }
 
-    setBuying(true)
+    setCreatingOrder(true)
     setError('')
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          raffleId: params.id,
+          ticketIds: selectedTickets,
+        }),
+      })
 
-      if (!session) {
-        router.push('/login')
-        return
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar pedido')
       }
 
-      // Verificar se o perfil existe
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .single()
+      setCurrentOrder({
+        id: data.orderId,
+        status: 'pending',
+        quantity: data.quantity,
+        total_amount: data.totalAmount,
+        expires_at: data.expiresAt,
+        pix_qr_code: null,
+        pix_copy_paste: null,
+        mercado_pago_payment_id: null,
+      })
 
-      if (!profile) {
-        await supabase.from('profiles').insert({
-          id: session.user.id,
-          email: session.user.email,
-        })
-      }
-
-      // Comprar bilhetes
-      const totalAmount = selectedTickets.length * (raffle?.ticket_price || 0)
-
-      for (const ticketNumber of selectedTickets) {
-        const { error: ticketError } = await supabase
-          .from('tickets')
-          .update({
-            status: 'sold',
-            buyer_id: session.user.id,
-            purchased_at: new Date().toISOString(),
-          })
-          .eq('raffle_id', params.id)
-          .eq('ticket_number', ticketNumber)
-          .eq('status', 'available')
-
-        if (ticketError) throw ticketError
-
-        // Criar transação
-        await supabase.from('transactions').insert({
-          ticket_id: tickets.find((t) => t.ticket_number === ticketNumber)?.id,
-          buyer_id: session.user.id,
-          amount: raffle?.ticket_price || 0,
-          status: 'completed',
-          payment_method: 'pending',
-        })
-      }
-
-      // Atualizar bilhetes disponíveis
-      const newAvailableTickets = (raffle?.available_tickets || 0) - selectedTickets.length
-      await supabase
-        .from('raffles')
-        .update({ available_tickets: newAvailableTickets })
-        .eq('id', params.id)
-
-      alert(`Compra realizada! ${selectedTickets.length} bilhetes comprados com sucesso.`)
+      setShowPaymentModal(true)
       setSelectedTickets([])
-      loadRaffle()
     } catch (err: any) {
       setError(err.message)
     } finally {
-      setBuying(false)
+      setCreatingOrder(false)
+    }
+  }
+
+  const handleCreatePayment = async () => {
+    if (!currentOrder) return
+
+    try {
+      const response = await fetch('/api/payments/mercado-pago', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: currentOrder.id }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar pagamento')
+      }
+
+      setCurrentOrder({
+        ...currentOrder,
+        pix_qr_code: data.qrCodeBase64,
+        pix_copy_paste: data.copyPaste,
+        mercado_pago_payment_id: data.paymentId,
+      })
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
+  const checkPaymentStatus = async () => {
+    if (!currentOrder?.mercado_pago_payment_id) return
+
+    try {
+      setPaymentStatus('checking')
+      const response = await fetch(`/api/payments/status/${currentOrder.mercado_pago_payment_id}`)
+      const data = await response.json()
+
+      if (data.success) {
+        if (data.paymentStatus === 'approved' || data.orderStatus === 'paid') {
+          setPaymentStatus('paid')
+          setShowPaymentModal(false)
+          setCurrentOrder(null)
+          loadRaffle()
+          alert('Pagamento confirmado! Bilhetes comprados com sucesso.')
+        } else if (data.orderStatus === 'expired') {
+          setPaymentStatus('expired')
+          setShowPaymentModal(false)
+          setCurrentOrder(null)
+          loadRaffle()
+          alert('Pedido expirado. Por favor, tente novamente.')
+        } else {
+          setPaymentStatus('pending')
+        }
+      }
+    } catch (err: any) {
+      console.error('Error checking payment status:', err)
+      setPaymentStatus('pending')
+    }
+  }
+
+  const copyPixCode = () => {
+    if (currentOrder?.pix_copy_paste) {
+      navigator.clipboard.writeText(currentOrder.pix_copy_paste)
+      alert('Código PIX copiado!')
     }
   }
 
@@ -180,8 +235,6 @@ export default function RaffleDetailPage() {
     )
   }
 
-  const availableTickets = tickets.filter((t) => t.status === 'available')
-  const soldTickets = tickets.filter((t) => t.status === 'sold')
   const totalAmount = selectedTickets.length * raffle.ticket_price
 
   return (
@@ -267,11 +320,11 @@ export default function RaffleDetailPage() {
             </div>
 
             <button
-              onClick={handleBuyTickets}
-              disabled={buying || selectedTickets.length === 0}
+              onClick={handleCreateOrder}
+              disabled={creatingOrder || selectedTickets.length === 0}
               className="w-full bg-green-600 text-white py-3 rounded-md hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {buying ? 'Processando...' : selectedTickets.length === 0 ? 'Selecione bilhetes' : `Comprar ${selectedTickets.length} bilhetes`}
+              {creatingOrder ? 'Criando pedido...' : selectedTickets.length === 0 ? 'Selecione bilhetes' : `Reservar ${selectedTickets.length} bilhetes`}
             </button>
           </div>
 
@@ -283,16 +336,19 @@ export default function RaffleDetailPage() {
               {tickets.map((ticket) => {
                 const isSelected = selectedTickets.includes(ticket.ticket_number)
                 const isSold = ticket.status === 'sold'
+                const isReserved = ticket.status === 'reserved'
 
                 return (
                   <button
                     key={ticket.id}
-                    onClick={() => !isSold && toggleTicket(ticket.ticket_number)}
-                    disabled={isSold}
+                    onClick={() => !isSold && !isReserved && toggleTicket(ticket.ticket_number)}
+                    disabled={isSold || isReserved}
                     className={`
                       p-3 rounded-md font-semibold transition
                       ${isSold
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : isReserved
+                        ? 'bg-yellow-300 text-yellow-700 cursor-not-allowed'
                         : isSelected
                         ? 'bg-purple-600 text-white'
                         : 'bg-white border-2 border-purple-300 text-purple-600 hover:bg-purple-50'
@@ -318,10 +374,119 @@ export default function RaffleDetailPage() {
                 <div className="w-4 h-4 bg-gray-300 rounded" />
                 <span>Vendido</span>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-yellow-300 rounded" />
+                <span>Reservado</span>
+              </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Modal de Pagamento */}
+      {showPaymentModal && currentOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">💳 Pagamento PIX</h3>
+
+            {paymentStatus === 'paid' ? (
+              <div className="text-center">
+                <div className="text-6xl mb-4">✅</div>
+                <p className="text-green-600 font-semibold text-lg">Pagamento Confirmado!</p>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="mt-4 bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : paymentStatus === 'expired' ? (
+              <div className="text-center">
+                <div className="text-6xl mb-4">⏰</div>
+                <p className="text-red-600 font-semibold text-lg">Pedido Expirado</p>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="mt-4 bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-gray-600 mb-2">Valor a pagar:</p>
+                    <p className="text-3xl font-bold text-purple-600">
+                      R$ {currentOrder.total_amount.toFixed(2)}
+                    </p>
+                  </div>
+
+                  {!currentOrder.pix_qr_code ? (
+                    <button
+                      onClick={handleCreatePayment}
+                      className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition"
+                    >
+                      Gerar QR Code PIX
+                    </button>
+                  ) : (
+                    <>
+                      <div className="bg-white p-4 rounded-lg">
+                        {currentOrder.pix_qr_code && (
+                          <img
+                            src={`data:image/png;base64,${currentOrder.pix_qr_code}`}
+                            alt="QR Code PIX"
+                            className="w-full max-w-xs mx-auto"
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Código PIX (Copie e Cole)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={currentOrder.pix_copy_paste || ''}
+                            readOnly
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                          />
+                          <button
+                            onClick={copyPixCode}
+                            className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition"
+                          >
+                            Copiar
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-yellow-50 p-3 rounded-md">
+                        <p className="text-sm text-yellow-800">
+                          ⏰ O pedido expira em:{' '}
+                          {new Date(currentOrder.expires_at).toLocaleTimeString('pt-BR')}
+                        </p>
+                      </div>
+
+                      {paymentStatus === 'checking' && (
+                        <div className="text-center text-blue-600">
+                          <p>Verificando status do pagamento...</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="mt-4 w-full bg-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-400 transition"
+                >
+                  Cancelar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

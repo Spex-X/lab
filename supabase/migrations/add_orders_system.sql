@@ -1,32 +1,11 @@
--- Tabela de perfis (estende auth.users)
-create table profiles (
-  id uuid references auth.users on delete cascade,
-  email text,
-  full_name text,
-  avatar_url text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  primary key (id)
-);
+-- Migração para adicionar sistema de pedidos e Mercado Pago
 
--- Tabela de rifas
-create table raffles (
-  id uuid default gen_random_uuid() primary key,
-  title text not null,
-  description text,
-  prize_image text,
-  prize_name text not null,
-  prize_value numeric,
-  total_tickets integer not null,
-  ticket_price numeric not null,
-  available_tickets integer not null,
-  draw_date timestamp with time zone,
-  status text default 'active', -- active, completed, cancelled
-  created_by uuid references profiles(id),
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
+-- ETAPA 1: Adicionar campos à tabela tickets
+alter table tickets
+add column order_id uuid references orders(id) on delete set null,
+add column reserved_until timestamp with time zone;
 
--- Tabela de pedidos
+-- ETAPA 2: Criar tabela orders
 create table orders (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade,
@@ -44,38 +23,9 @@ create table orders (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Tabela de bilhetes
-create table tickets (
-  id uuid default gen_random_uuid() primary key,
-  raffle_id uuid references raffles(id) on delete cascade,
-  ticket_number integer not null,
-  status text default 'available', -- available, sold, reserved
-  buyer_id uuid references profiles(id),
-  purchased_at timestamp with time zone,
-  order_id uuid references orders(id) on delete set null,
-  reserved_until timestamp with time zone,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(raffle_id, ticket_number)
-);
-
--- Tabela de transações
-create table transactions (
-  id uuid default gen_random_uuid() primary key,
-  ticket_id uuid references tickets(id) on delete cascade,
-  buyer_id uuid references profiles(id),
-  amount numeric not null,
-  status text default 'pending', -- pending, completed, failed
-  payment_method text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Índices para performance
-create index idx_tickets_raffle_id on tickets(raffle_id);
-create index idx_tickets_buyer_id on tickets(buyer_id);
+-- ETAPA 3: Adicionar índices
 create index idx_tickets_order_id on tickets(order_id);
 create index idx_tickets_status on tickets(status);
-create index idx_transactions_buyer_id on transactions(buyer_id);
-create index idx_raffles_status on raffles(status);
 create index idx_orders_user_id on orders(user_id);
 create index idx_orders_raffle_id on orders(raffle_id);
 create index idx_orders_status on orders(status);
@@ -83,47 +33,19 @@ create index idx_orders_mercado_pago_payment_id on orders(mercado_pago_payment_i
 create index idx_orders_mercado_pago_external_reference on orders(mercado_pago_external_reference);
 create index idx_orders_expires_at on orders(expires_at);
 
--- Row Level Security
-alter table profiles enable row level security;
-alter table raffles enable row level security;
-alter table tickets enable row level security;
-alter table transactions enable row level security;
+-- ETAPA 4: Habilitar RLS na tabela orders
 alter table orders enable row level security;
 
--- Políticas RLS básicas
-create policy "Users can view all profiles" on profiles for select using (true);
-create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
-
-create policy "Anyone can view active raffles" on raffles for select using (status = 'active');
-create policy "Users can create raffles" on raffles for insert with check (auth.uid() = created_by);
-create policy "Creators can update their raffles" on raffles for update using (auth.uid() = created_by);
-
-create policy "Anyone can view tickets" on tickets for select using (true);
-create policy "Users can buy tickets" on tickets for update using (auth.uid() = buyer_id or status = 'available');
-
-create policy "Users can view own transactions" on transactions for select using (auth.uid() = buyer_id);
-create policy "Users can create transactions" on transactions for insert with check (auth.uid() = buyer_id);
-
+-- ETAPA 5: Adicionar políticas RLS para orders
 create policy "Users can view own orders" on orders for select using (auth.uid() = user_id);
 create policy "Users can create orders" on orders for insert with check (auth.uid() = user_id);
 create policy "Users can update own orders" on orders for update using (auth.uid() = user_id);
 
--- Trigger para atualizar updated_at
-create or replace function update_updated_at_column()
-returns trigger as $$
-begin
-  new.updated_at = timezone('utc'::text, now());
-  return new;
-end;
-$$ language plpgsql;
-
-create trigger update_raffles_updated_at before update on raffles
-  for each row execute procedure update_updated_at_column();
-
+-- ETAPA 6: Adicionar trigger para updated_at em orders
 create trigger update_orders_updated_at before update on orders
   for each row execute procedure update_updated_at_column();
 
--- Função RPC para reserva atômica de bilhetes
+-- ETAPA 7: Criar função RPC para reserva atômica
 create or replace function reserve_tickets_atomic(
   p_raffle_id uuid,
   p_user_id uuid,
@@ -225,7 +147,7 @@ exception
 end;
 $$;
 
--- Função para liberar bilhetes de pedidos expirados
+-- ETAPA 8: Criar função para liberar bilhetes de pedidos expirados
 create or replace function release_expired_tickets()
 returns void
 language plpgsql
@@ -252,7 +174,7 @@ begin
 end;
 $$;
 
--- Função para confirmar pagamento
+-- ETAPA 9: Criar função para confirmar pagamento
 create or replace function confirm_order_payment(
   p_order_id uuid,
   p_payment_id text,
