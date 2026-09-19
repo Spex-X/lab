@@ -12,6 +12,15 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
+  // Buscar perfil para verificar se é admin
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single()
+
+  const isAdmin = profile?.role === 'admin'
+
   // Buscar estatísticas
   const [
     { count: totalRaffles },
@@ -40,6 +49,14 @@ export default async function DashboardPage() {
               <h1 className="text-2xl font-bold text-purple-600">🎰 Sistema de Rifas</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition flex items-center gap-2"
+                >
+                  🛡️ Admin
+                </Link>
+              )}
               <span className="text-gray-700">{session.user.email}</span>
               <Link
                 href="/logout"

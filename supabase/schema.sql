@@ -4,6 +4,7 @@ create table profiles (
   email text,
   full_name text,
   avatar_url text,
+  role text default 'user', -- user, admin
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   primary key (id)
 );
@@ -348,5 +349,81 @@ begin
   ) into v_stats;
 
   return v_stats;
+end;
+$$;
+
+-- Função para criar usuário admin
+create or replace function create_admin_user(p_email text, p_password text, p_full_name text)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid;
+  v_profile_id uuid;
+begin
+  -- Criar usuário no auth
+  insert into auth.users (email, encrypted_password, email_confirmed_at)
+  values (
+    p_email,
+    crypt(p_password, gen_salt('bf')),
+    timezone('utc'::text, now())
+  )
+  returning id into v_user_id;
+
+  -- Criar perfil com role admin
+  insert into profiles (id, email, full_name, role)
+  values (v_user_id, p_email, p_full_name, 'admin')
+  returning id into v_profile_id;
+
+  return json_build_object(
+    'success', true,
+    'user_id', v_user_id,
+    'profile_id', v_profile_id,
+    'email', p_email,
+    'role', 'admin'
+  );
+
+exception
+  when others then
+    return json_build_object('error', SQLERRM);
+end;
+$$;
+
+-- Função para promover usuário a admin
+create or replace function promote_to_admin(p_user_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+begin
+  update profiles
+  set role = 'admin'
+  where id = p_user_id;
+
+  return json_build_object('success', true, 'user_id', p_user_id, 'role', 'admin');
+
+exception
+  when others then
+    return json_build_object('error', SQLERRM);
+end;
+$$;
+
+-- Função para remover role admin
+create or replace function remove_admin_role(p_user_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+begin
+  update profiles
+  set role = 'user'
+  where id = p_user_id;
+
+  return json_build_object('success', true, 'user_id', p_user_id, 'role', 'user');
+
+exception
+  when others then
+    return json_build_object('error', SQLERRM);
 end;
 $$;
