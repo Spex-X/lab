@@ -20,7 +20,7 @@ create table raffles (
   ticket_price numeric not null,
   available_tickets integer not null,
   draw_date timestamp with time zone,
-  status text default 'active', -- active, completed, cancelled
+  status text default 'active', -- active, paused, completed, cancelled
   created_by uuid references profiles(id),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -327,5 +327,26 @@ begin
 exception
   when others then
     return json_build_object('error', SQLERRM);
+end;
+$$;
+
+-- Função para obter estatísticas da rifa
+create or replace function get_raffle_stats(p_raffle_id uuid)
+returns json
+language plpgsql
+as $$
+declare
+  v_stats json;
+begin
+  select json_build_object(
+    'sold_tickets', (select count(*) from tickets where raffle_id = p_raffle_id and status = 'sold'),
+    'reserved_tickets', (select count(*) from tickets where raffle_id = p_raffle_id and status = 'reserved'),
+    'available_tickets', (select count(*) from tickets where raffle_id = p_raffle_id and status = 'available'),
+    'total_orders', (select count(*) from orders where raffle_id = p_raffle_id),
+    'paid_orders', (select count(*) from orders where raffle_id = p_raffle_id and status = 'paid'),
+    'revenue', (select coalesce(sum(total_amount), 0) from orders where raffle_id = p_raffle_id and status = 'paid')
+  ) into v_stats;
+
+  return v_stats;
 end;
 $$;

@@ -62,6 +62,7 @@ export default async function MyRafflesPage() {
               const soldPercentage = 100 - availablePercentage
               const isCompleted = raffle.status === 'completed'
               const isCancelled = raffle.status === 'cancelled'
+              const isPaused = raffle.status === 'paused'
 
               return (
                 <div
@@ -83,9 +84,10 @@ export default async function MyRafflesPage() {
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
                         isCompleted ? 'bg-green-100 text-green-800' :
                         isCancelled ? 'bg-red-100 text-red-800' :
+                        isPaused ? 'bg-yellow-100 text-yellow-800' :
                         'bg-blue-100 text-blue-800'
                       }`}>
-                        {isCompleted ? 'Concluída' : isCancelled ? 'Cancelada' : 'Ativa'}
+                        {isCompleted ? 'Concluída' : isCancelled ? 'Cancelada' : isPaused ? 'Pausada' : 'Ativa'}
                       </span>
                     </div>
 
@@ -135,10 +137,16 @@ export default async function MyRafflesPage() {
 
                     <div className="mt-4 space-y-2">
                       <Link
+                        href={`/rifas/${raffle.id}/gerenciar`}
+                        className="block w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition text-center"
+                      >
+                        ⚙️ Gerenciar
+                      </Link>
+                      <Link
                         href={`/rifas/${raffle.id}`}
                         className="block w-full bg-purple-600 text-white py-2 rounded-md hover:bg-purple-700 transition text-center"
                       >
-                        Ver Detalhes
+                        👁️ Ver Detalhes
                       </Link>
                     </div>
                   </div>
