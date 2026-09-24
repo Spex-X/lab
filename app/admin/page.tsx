@@ -57,32 +57,6 @@ export default async function AdminPage() {
     .limit(10)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
-                ← Voltar
-              </Link>
-              <h1 className="text-2xl font-bold text-red-600">🛡️ Painel Admin</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
-                Admin
-              </span>
-              <span className="text-gray-700">{session.user.email}</span>
-              <Link
-                href="/logout"
-                className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
-              >
-                Sair
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h2>
@@ -237,16 +211,15 @@ export default async function AdminPage() {
             </Link>
 
             <Link
-              href="/admin/relatorios"
+              href="/admin/saques"
               className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition text-center"
             >
-              <div className="text-3xl mb-2">📊</div>
-              <div className="font-semibold">Relatórios</div>
-              <div className="text-sm opacity-80">Estatísticas detalhadas</div>
+              <div className="text-3xl mb-2">�</div>
+              <div className="font-semibold">Saques de Parceiros</div>
+              <div className="text-sm opacity-80">Aprovar pagamentos</div>
             </Link>
           </div>
         </div>
       </main>
-    </div>
   )
 }

@@ -8,11 +8,11 @@ export async function POST(request: Request) {
 
     // Verificar autenticação
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (sessionError || !session) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       .from('orders')
       .select('*')
       .eq('id', orderId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (orderError || !order) {

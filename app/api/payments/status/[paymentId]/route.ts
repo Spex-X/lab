@@ -4,25 +4,25 @@ import { NextResponse } from 'next/server'
 
 export async function GET(
   request: Request,
-  { params }: { params: { paymentId: string } }
+  { params }: { params: Promise<{ paymentId: string }> }
 ) {
   try {
     const supabase = await createClient()
 
     // Verificar autenticação
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (sessionError || !session) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }
       )
     }
 
-    const { paymentId } = params
+    const { paymentId } = await params
 
     // Buscar status do pagamento no Mercado Pago
     const paymentData = await getPaymentStatus(paymentId)
@@ -32,7 +32,7 @@ export async function GET(
       .from('orders')
       .select('*')
       .eq('mercado_pago_payment_id', paymentId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (!order) {

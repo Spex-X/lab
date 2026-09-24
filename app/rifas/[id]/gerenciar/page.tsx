@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase-client'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { ImageUpload } from '@/components/image-upload'
 
 interface Raffle {
   id: string
@@ -61,6 +62,8 @@ export default function RaffleManagePage() {
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const params = useParams()
   const router = useRouter()
   const supabase = createClient()
@@ -191,6 +194,47 @@ export default function RaffleManagePage() {
     }
   }
 
+  const handleDeleteRaffle = async () => {
+    if (!raffle) return
+
+    setDeleting(true)
+    setError('')
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('raffles')
+        .delete()
+        .eq('id', params.id)
+
+      if (deleteError) throw deleteError
+
+      router.push('/minhas-rifas')
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message)
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }
+
+  const handleCancelRaffle = async () => {
+    if (!raffle) return
+
+    try {
+      const { error: updateError } = await supabase
+        .from('raffles')
+        .update({ status: 'cancelled' })
+        .eq('id', params.id)
+
+      if (updateError) throw updateError
+
+      setSuccess('Rifa cancelada com sucesso!')
+      loadRaffle()
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
   const handleToggleStatus = async () => {
     if (!raffle) return
 
@@ -272,8 +316,6 @@ export default function RaffleManagePage() {
       </div>
     )
   }
-
-  const stats = calculateStats()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -625,13 +667,11 @@ export default function RaffleManagePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URL da Imagem
+                    Imagem do Prêmio
                   </label>
-                  <input
-                    type="url"
+                  <ImageUpload
                     value={editForm.prize_image}
-                    onChange={(e) => setEditForm({ ...editForm, prize_image: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    onChange={(url) => setEditForm({ ...editForm, prize_image: url })}
                   />
                 </div>
 
@@ -713,6 +753,68 @@ export default function RaffleManagePage() {
                 </div>
               </div>
             )}
+
+            {/* Zona de Perigo */}
+            <div className="mt-8 border-2 border-red-200 rounded-lg p-5 bg-red-50">
+              <h4 className="font-semibold text-red-700 mb-2">⚠️ Zona de perigo</h4>
+
+              {stats?.soldTickets > 0 ? (
+                <div>
+                  <p className="text-sm text-red-600 mb-4">
+                    Esta rifa já tem {stats.soldTickets} bilhete(s) vendido(s) e não pode ser excluída.
+                    Você pode cancelá-la — ela sairá do ar, mas os registros de venda serão mantidos.
+                  </p>
+                  {raffle.status !== 'cancelled' && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Cancelar esta rifa? Ela sairá do ar e não poderá mais receber vendas.')) {
+                          handleCancelRaffle()
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold hover:bg-red-700 transition"
+                    >
+                      🚫 Cancelar rifa
+                    </button>
+                  )}
+                  {raffle.status === 'cancelled' && (
+                    <span className="text-sm text-red-600 font-semibold">Esta rifa está cancelada.</span>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-red-600 mb-4">
+                    Excluir a rifa remove todos os bilhetes e pedidos associados.
+                    Esta ação não pode ser desfeita.
+                  </p>
+
+                  {!confirmDelete ? (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold hover:bg-red-700 transition"
+                    >
+                      🗑️ Excluir rifa
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-red-700">Tem certeza?</span>
+                      <button
+                        onClick={handleDeleteRaffle}
+                        disabled={deleting}
+                        className="px-4 py-2 bg-red-700 text-white rounded-md font-semibold hover:bg-red-800 transition disabled:opacity-50"
+                      >
+                        {deleting ? 'Excluindo...' : 'Sim, excluir'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md font-semibold hover:bg-gray-400 transition"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>

@@ -33,7 +33,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getSession()
 
   // Proteger rotas que requerem autenticação
-  const protectedPaths = ['/dashboard', '/minhas-rifas', '/criar-rifa']
+  const protectedPaths = ['/dashboard', '/minhas-rifas', '/criar-rifa', '/meus-bilhetes', '/afiliados', '/suporte', '/perfil', '/divulgacao', '/saque', '/comissoes']
   const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
 
   if (isProtectedPath && !session) {

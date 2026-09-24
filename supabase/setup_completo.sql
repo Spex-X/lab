@@ -1,4 +1,10 @@
-CREATE TABLE IF NOT EXISTS profiles (
+DROP TABLE IF EXISTS transactions CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS raffles CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+
+CREATE TABLE profiles (
   id uuid REFERENCES auth.users ON DELETE CASCADE,
   email text,
   full_name text,
@@ -8,7 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS raffles (
+CREATE TABLE raffles (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title text NOT NULL,
   description text,
@@ -25,7 +31,7 @@ CREATE TABLE IF NOT EXISTS raffles (
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE orders (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
   raffle_id uuid REFERENCES raffles(id) ON DELETE CASCADE,
@@ -42,7 +48,7 @@ CREATE TABLE IF NOT EXISTS orders (
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS tickets (
+CREATE TABLE tickets (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   raffle_id uuid REFERENCES raffles(id) ON DELETE CASCADE,
   ticket_number integer NOT NULL,
@@ -55,7 +61,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   UNIQUE(raffle_id, ticket_number)
 );
 
-CREATE TABLE IF NOT EXISTS transactions (
+CREATE TABLE transactions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   ticket_id uuid REFERENCES tickets(id) ON DELETE CASCADE,
   buyer_id uuid REFERENCES profiles(id),
@@ -65,18 +71,18 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_buyer_id ON tickets(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_order_id ON tickets(order_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
-CREATE INDEX IF NOT EXISTS idx_transactions_buyer_id ON transactions(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_raffles_status ON raffles(status);
-CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_orders_raffle_id ON orders(raffle_id);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_mercado_pago_payment_id ON orders(mercado_pago_payment_id);
-CREATE INDEX IF NOT EXISTS idx_orders_mercado_pago_external_reference ON orders(mercado_pago_external_reference);
-CREATE INDEX IF NOT EXISTS idx_orders_expires_at ON orders(expires_at);
+CREATE INDEX idx_tickets_raffle_id ON tickets(raffle_id);
+CREATE INDEX idx_tickets_buyer_id ON tickets(buyer_id);
+CREATE INDEX idx_tickets_order_id ON tickets(order_id);
+CREATE INDEX idx_tickets_status ON tickets(status);
+CREATE INDEX idx_transactions_buyer_id ON transactions(buyer_id);
+CREATE INDEX idx_raffles_status ON raffles(status);
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+CREATE INDEX idx_orders_raffle_id ON orders(raffle_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_mercado_pago_payment_id ON orders(mercado_pago_payment_id);
+CREATE INDEX idx_orders_mercado_pago_external_reference ON orders(mercado_pago_external_reference);
+CREATE INDEX idx_orders_expires_at ON orders(expires_at);
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE raffles ENABLE ROW LEVEL SECURITY;
