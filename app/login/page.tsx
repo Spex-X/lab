@@ -52,10 +52,14 @@ function LoginForm() {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         if (data.user) {
-          await supabase.rpc('ensure_affiliate_code', {
-            p_user_id: data.user.id,
-            p_ref_code: getRefCookie(),
-          })
+          try {
+            await supabase.rpc('ensure_affiliate_code', {
+              p_user_id: data.user.id,
+              p_ref_code: getRefCookie(),
+            })
+          } catch {
+            // Vinculação de parceiro não pode bloquear o login
+          }
         }
         // Redireciona conforme o tipo de usuário (respeita ?next=)
         const { data: prof } = await supabase
