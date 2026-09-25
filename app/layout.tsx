@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RifaLab — Painel de Rifas",
-  description: "Acompanhe vendas, campanhas, números e pedidos das suas rifas.",
+  title: "Lab — Sorteios online",
+  description: "Escolha seus números, pague por Pix e concorra a prêmios. Sorteios auditados pela Loteria Federal.",
 };
 
 const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':true;if(d)document.documentElement.classList.add('dark')}catch(e){}})()`;

@@ -7,7 +7,7 @@ export default async function AffiliatesPage() {
   const { session, userName, isAdmin, isAffiliate, profile } = await getSessionUser()
 
   // Painel de afiliado só para afiliados aprovados pelo admin
-  if (!isAffiliate) redirect('/rifas')
+  if (!isAffiliate) redirect('/dashboard')
 
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>

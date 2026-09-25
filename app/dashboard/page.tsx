@@ -78,7 +78,7 @@ export default async function DashboardPage() {
             </p>
           </div>
 
-          <section className="grid grid-cols-3 gap-4">
+          <section className="grid grid-cols-3 gap-3 sm:gap-4">
             <div className={`${card} p-5`}>
               <p className="text-sm text-muted-foreground mb-2">Números comprados</p>
               <p className="text-3xl font-semibold text-primary">{boughtCount ?? 0}</p>
@@ -240,16 +240,16 @@ export default async function DashboardPage() {
         </section>
 
         {/* STATS */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div className="rounded-2xl border border-border bg-card p-5">
             <p className="text-sm text-muted-foreground mb-3">Saldo acumulado</p>
-            <p className="text-3xl font-semibold tracking-tight">{formatCurrency(totalRevenue)}</p>
+            <p className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums break-all">{formatCurrency(totalRevenue)}</p>
             <p className="text-xs text-primary mt-2">{paidOrders?.length ?? 0} pedidos pagos</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5">
             <p className="text-sm text-muted-foreground mb-3">Vendido hoje</p>
-            <p className="text-3xl font-semibold tracking-tight">{formatCurrency(todayRevenue)}</p>
+            <p className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums break-all">{formatCurrency(todayRevenue)}</p>
             <p className="text-xs text-muted-foreground mt-2">{todayTickets} números</p>
           </div>
 
@@ -261,7 +261,7 @@ export default async function DashboardPage() {
 
           <div className="rounded-2xl border border-border bg-card p-5">
             <p className="text-sm text-muted-foreground mb-3">Ticket médio</p>
-            <p className="text-3xl font-semibold tracking-tight">
+            <p className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums break-all">
               {paidOrders && paidOrders.length > 0
                 ? formatCurrency(totalRevenue / paidOrders.length)
                 : 'R$ 0'}
@@ -439,7 +439,7 @@ export default async function DashboardPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground pt-4">
-          RifaLab · {userName}
+          Lab · {userName}
         </p>
       </main>
     </UserShell>

@@ -6,7 +6,7 @@ import { AffiliateEarnings } from '@/components/affiliate-earnings'
 export default async function CommissionsPage() {
   const { session, userName, isAdmin, isAffiliate } = await getSessionUser()
 
-  if (!isAffiliate) redirect('/rifas')
+  if (!isAffiliate) redirect('/dashboard')
 
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>

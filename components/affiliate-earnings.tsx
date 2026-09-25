@@ -74,11 +74,11 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {cards.map((s) => (
           <div key={s.label} className={`${card} p-4`}>
             <p className="text-xs text-muted-foreground mb-2">{s.label}</p>
-            <p className={`text-xl font-semibold ${s.accent ? 'text-primary' : ''}`}>{s.value}</p>
+            <p className={`text-xl font-semibold tabular-nums break-all ${s.accent ? 'text-primary' : ''}`}>{s.value}</p>
           </div>
         ))}
       </div>

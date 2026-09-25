@@ -250,8 +250,8 @@ export default function RaffleDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <Link href="/rifas" className="text-sm text-muted-foreground hover:text-foreground transition">← Voltar</Link>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">R</div>
-            <span className="font-semibold hidden sm:block">RifaLab</span>
+            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">L</div>
+            <span className="font-semibold hidden sm:block">Lab</span>
           </Link>
           <ThemeToggle />
         </div>

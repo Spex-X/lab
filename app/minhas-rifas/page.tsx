@@ -7,7 +7,7 @@ import { badgeClass, statusLabel, btnPrimary, btnOutline, card } from '@/compone
 export default async function MyRafflesPage() {
   const { supabase, session, userName, isAdmin } = await getSessionUser()
 
-  if (!isAdmin) redirect('/rifas')
+  if (!isAdmin) redirect('/dashboard')
 
   const { data: myRaffles } = await supabase
     .from('raffles')
@@ -33,7 +33,7 @@ export default async function MyRafflesPage() {
           <Link href="/criar-rifa" className={btnPrimary}>Criar rifa</Link>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className={`${card} p-5`}>
             <p className="text-sm text-muted-foreground mb-2">Ativas</p>
             <p className="text-3xl font-semibold">{String(active).padStart(2, '0')}</p>
@@ -44,7 +44,7 @@ export default async function MyRafflesPage() {
           </div>
           <div className={`${card} p-5`}>
             <p className="text-sm text-muted-foreground mb-2">Arrecadado</p>
-            <p className="text-3xl font-semibold text-primary">{formatCurrency(totalRevenue, 0)}</p>
+            <p className="text-3xl font-semibold text-primary tabular-nums break-all">{formatCurrency(totalRevenue, 0)}</p>
           </div>
         </div>
 

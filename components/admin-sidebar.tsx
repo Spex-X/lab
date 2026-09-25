@@ -18,10 +18,10 @@ export function AdminSidebar({ email }: { email: string }) {
       <div className="p-5 border-b border-gray-800">
         <Link href="/admin" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold">
-            R
+            L
           </div>
           <div>
-            <div className="font-bold text-white leading-tight">RifaLab</div>
+            <div className="font-bold text-white leading-tight">Lab</div>
             <div className="text-[11px] text-gray-500">Administração</div>
           </div>
         </Link>

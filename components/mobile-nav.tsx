@@ -1,36 +1,37 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
-import { initials } from './user-sidebar'
 
-const userItems = [
-  { href: '/rifas', label: 'Explorar sorteios', icon: '🎲' },
-  { href: '/meus-bilhetes', label: 'Meus bilhetes', icon: '🎫' },
-  { href: '/perfil', label: 'Meu perfil', icon: '👤' },
+type Item = { href: string; label: string; icon: string; exact?: boolean }
+
+// Barra inferior: máximo 5 itens por perfil (padrão de app mobile)
+const userTabs: Item[] = [
+  { href: '/dashboard', label: 'Início', icon: '🏠', exact: true },
+  { href: '/rifas', label: 'Sorteios', icon: '🎲' },
+  { href: '/meus-bilhetes', label: 'Bilhetes', icon: '🎫' },
+  { href: '/perfil', label: 'Perfil', icon: '👤' },
   { href: '/suporte', label: 'Suporte', icon: '❓' },
 ]
 
-const affiliateItems = [
+const affiliateTabs: Item[] = [
   { href: '/comissoes', label: 'Saldo', icon: '💳' },
-  { href: '/dashboard', label: 'Convidar parceiros', icon: '🤝', exact: true },
-  { href: '/divulgacao', label: 'Links de divulgação', icon: '🔗' },
+  { href: '/dashboard', label: 'Parceiros', icon: '🤝', exact: true },
+  { href: '/divulgacao', label: 'Links', icon: '🔗' },
   { href: '/saque', label: 'Saque', icon: '💸' },
-  { href: '/suporte', label: 'Suporte', icon: '❓' },
+  { href: '/perfil', label: 'Perfil', icon: '👤' },
 ]
 
-const adminItems = [
-  { href: '/dashboard', label: 'Visão geral', icon: '📊', exact: true },
-  { href: '/minhas-rifas', label: 'Minhas rifas', icon: '🎰' },
-  { href: '/criar-rifa', label: 'Criar rifa', icon: '➕' },
-  { href: '/admin', label: 'Painel Admin', icon: '🔒' },
+const adminTabs: Item[] = [
+  { href: '/dashboard', label: 'Visão', icon: '📊', exact: true },
+  { href: '/minhas-rifas', label: 'Rifas', icon: '🎰' },
+  { href: '/criar-rifa', label: 'Criar', icon: '➕' },
+  { href: '/admin', label: 'Admin', icon: '🔒' },
+  { href: '/perfil', label: 'Perfil', icon: '👤' },
 ]
 
 export function MobileNav({
-  userName,
-  email,
   isAdmin,
   isAffiliate,
 }: {
@@ -39,65 +40,48 @@ export function MobileNav({
   isAdmin: boolean
   isAffiliate: boolean
 }) {
-  const [open, setOpen] = useState(false)
   const pathname = usePathname()
-
-  const linkCls = (href: string, exact?: boolean) => {
-    const active = exact ? pathname === href : pathname.startsWith(href)
-    return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-      active ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-    }`
-  }
+  const tabs = isAdmin ? adminTabs : isAffiliate ? affiliateTabs : userTabs
 
   return (
-    <div className="lg:hidden sticky top-0 z-40">
-      <div className="h-14 px-4 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl">
-        <Link href={isAdmin || isAffiliate ? '/dashboard' : '/rifas'} className="flex items-center gap-2">
+    <>
+      {/* Topo: logo + tema + avatar */}
+      <div className="lg:hidden sticky top-0 z-40 h-14 px-4 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">
-            R
+            L
           </div>
-          <span className="font-semibold">RifaLab</span>
+          <span className="font-semibold">Lab</span>
         </Link>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button
-            onClick={() => setOpen(!open)}
-            className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-lg"
-            aria-label="Menu"
-          >
-            {open ? '✕' : '☰'}
-          </button>
-        </div>
+        <ThemeToggle />
       </div>
 
-      {open && (
-        <div className="absolute inset-x-0 top-14 bg-card border-b border-border shadow-xl p-3 space-y-1">
-          {(isAffiliate && !isAdmin ? affiliateItems : userItems).map((it) => (
-            <Link key={it.href} href={it.href} onClick={() => setOpen(false)} className={linkCls(it.href)}>
-              <span>{it.icon}</span>
-              {it.label}
-            </Link>
-          ))}
-          {isAdmin &&
-            adminItems.map((it) => (
-              <Link key={it.href} href={it.href} onClick={() => setOpen(false)} className={linkCls(it.href, it.exact)}>
-                <span>{it.icon}</span>
-                {it.label}
+      {/* Barra inferior fixa */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5 h-16">
+          {tabs.map((t) => {
+            const active = t.exact ? pathname === t.href : pathname.startsWith(t.href)
+            return (
+              <Link
+                key={t.href}
+                href={t.href}
+                className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition ${
+                  active ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <span
+                  className={`text-xl leading-none w-11 h-8 flex items-center justify-center rounded-xl transition ${
+                    active ? 'bg-primary/15' : ''
+                  }`}
+                >
+                  {t.icon}
+                </span>
+                {t.label}
               </Link>
-            ))}
-          <div className="border-t border-border pt-3 mt-3 flex items-center justify-between px-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-semibold text-xs shrink-0">
-                {initials(userName)}
-              </div>
-              <span className="text-sm truncate">{userName}</span>
-            </div>
-            <Link href="/logout" className="text-sm text-destructive font-medium">
-              Sair
-            </Link>
-          </div>
+            )
+          })}
         </div>
-      )}
-    </div>
+      </nav>
+    </>
   )
 }

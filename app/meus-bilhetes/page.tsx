@@ -41,7 +41,7 @@ export default async function MyTicketsPage() {
           <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className={`${card} p-5`}>
             <p className="text-sm text-muted-foreground mb-2">Comprados</p>
             <p className="text-3xl font-semibold text-primary">{sold.length}</p>
@@ -52,7 +52,7 @@ export default async function MyTicketsPage() {
           </div>
           <div className={`${card} p-5`}>
             <p className="text-sm text-muted-foreground mb-2">Total investido</p>
-            <p className="text-3xl font-semibold">{formatCurrency(totalSpent, 0)}</p>
+            <p className="text-3xl font-semibold tabular-nums break-all">{formatCurrency(totalSpent, 0)}</p>
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
 
 const userItems = [
+  { href: '/dashboard', label: 'Início', icon: '🏠', exact: true },
   { href: '/rifas', label: 'Explorar sorteios', icon: '🎲' },
   { href: '/meus-bilhetes', label: 'Meus bilhetes', icon: '🎫' },
   { href: '/perfil', label: 'Meu perfil', icon: '👤' },
@@ -68,12 +69,12 @@ export function UserSidebar({
   return (
     <aside className="w-64 shrink-0 bg-card border-r border-border hidden lg:flex flex-col sticky top-0 h-screen">
       <div className="p-5 border-b border-border">
-        <Link href={isAdmin || isAffiliate ? '/dashboard' : '/rifas'} className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
-            R
+            L
           </div>
           <div>
-            <div className="font-semibold leading-tight">RifaLab</div>
+            <div className="font-semibold leading-tight">Lab</div>
             <div className="text-[11px] text-muted-foreground">Painel</div>
           </div>
         </Link>
@@ -87,9 +88,11 @@ export function UserSidebar({
           ? affiliateItems.map((it) => (
               <NavLink key={it.href} {...it} activeClass="bg-primary/15 text-primary" />
             ))
-          : userItems.map((it) => (
-              <NavLink key={it.href} {...it} activeClass="bg-primary/15 text-primary" />
-            ))}
+          : userItems
+              .filter((it) => !(isAdmin && it.href === '/dashboard'))
+              .map((it) => (
+                <NavLink key={it.href} {...it} activeClass="bg-primary/15 text-primary" />
+              ))}
 
         {isAdmin && (
           <>

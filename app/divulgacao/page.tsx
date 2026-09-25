@@ -8,7 +8,7 @@ import { headers } from 'next/headers'
 export default async function PromotionLinksPage() {
   const { supabase, session, userName, isAdmin, isAffiliate, profile } = await getSessionUser()
 
-  if (!isAffiliate) redirect('/rifas')
+  if (!isAffiliate) redirect('/dashboard')
 
   const { data: raffles } = await supabase
     .from('raffles')

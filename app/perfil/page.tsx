@@ -1,10 +1,11 @@
+import Link from 'next/link'
 import { UserShell } from '@/components/user-shell'
 import { getSessionUser, formatDate } from '@/lib/get-session-user'
 import { card } from '@/components/ui'
 import { ProfileForm } from './profile-form'
 
 export default async function ProfilePage() {
-  const { session, userName, email, isAdmin, profile } = await getSessionUser()
+  const { session, userName, email, isAdmin, isAffiliate, profile } = await getSessionUser()
 
   return (
     <UserShell userName={userName} email={email} isAdmin={isAdmin}>
@@ -37,9 +38,22 @@ export default async function ProfilePage() {
             </div>
             <div>
               <dt className="text-muted-foreground">Tipo de conta</dt>
-              <dd className="font-medium mt-0.5">{isAdmin ? 'Administrador' : 'Usuário'}</dd>
+              <dd className="font-medium mt-0.5">{isAdmin ? 'Administrador' : isAffiliate ? 'Parceiro' : 'Usuário'}</dd>
             </div>
           </dl>
+        </section>
+
+        <section className={`${card} p-6 flex items-center justify-between gap-4`}>
+          <div>
+            <h2 className="font-semibold">Sair da conta</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Encerra sua sessão neste dispositivo.</p>
+          </div>
+          <Link
+            href="/logout"
+            className="px-5 py-2.5 rounded-xl border border-destructive/40 text-destructive text-sm font-semibold hover:bg-destructive/10 transition shrink-0"
+          >
+            Sair
+          </Link>
         </section>
       </main>
     </UserShell>

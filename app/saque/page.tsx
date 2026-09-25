@@ -7,7 +7,7 @@ import { WithdrawForm } from '@/app/afiliados/withdraw-form'
 export default async function WithdrawPage() {
   const { supabase, session, userName, isAdmin, isAffiliate } = await getSessionUser()
 
-  if (!isAffiliate) redirect('/rifas')
+  if (!isAffiliate) redirect('/dashboard')
 
   const { data: statsRaw } = await supabase.rpc('get_affiliate_stats', {
     p_user_id: session.user.id,
@@ -31,18 +31,18 @@ export default async function WithdrawPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className={`${card} p-5`}>
-            <p className="text-xs text-muted-foreground mb-2">Disponível</p>
-            <p className="text-2xl font-semibold text-primary">{formatCurrency(stats.available)}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className={`${card} p-4 sm:p-5 flex sm:block items-center justify-between gap-3`}>
+            <p className="text-xs text-muted-foreground sm:mb-2">Disponível</p>
+            <p className="text-xl sm:text-2xl font-semibold text-primary tabular-nums break-all">{formatCurrency(stats.available)}</p>
           </div>
-          <div className={`${card} p-5`}>
-            <p className="text-xs text-muted-foreground mb-2">Pendente</p>
-            <p className="text-2xl font-semibold">{formatCurrency(stats.pending_withdrawal)}</p>
+          <div className={`${card} p-4 sm:p-5 flex sm:block items-center justify-between gap-3`}>
+            <p className="text-xs text-muted-foreground sm:mb-2">Pendente</p>
+            <p className="text-xl sm:text-2xl font-semibold tabular-nums break-all">{formatCurrency(stats.pending_withdrawal)}</p>
           </div>
-          <div className={`${card} p-5`}>
-            <p className="text-xs text-muted-foreground mb-2">Já sacado</p>
-            <p className="text-2xl font-semibold">{formatCurrency(stats.withdrawn)}</p>
+          <div className={`${card} p-4 sm:p-5 flex sm:block items-center justify-between gap-3`}>
+            <p className="text-xs text-muted-foreground sm:mb-2">Já sacado</p>
+            <p className="text-xl sm:text-2xl font-semibold tabular-nums break-all">{formatCurrency(stats.withdrawn)}</p>
           </div>
         </div>
 

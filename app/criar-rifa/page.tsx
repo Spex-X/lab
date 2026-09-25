@@ -37,7 +37,7 @@ export default function CreateRafflePage() {
         .select('role')
         .eq('id', user.id)
         .single()
-      if (profile?.role !== 'admin') router.push('/rifas')
+      if (profile?.role !== 'admin') router.push('/dashboard')
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

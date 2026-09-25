@@ -34,10 +34,10 @@ export function AppNav({ active = 'none', userName = 'Usuário', isAdmin = false
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         <Link href="/dashboard" className="flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
-            R
+            L
           </div>
           <div className="hidden sm:block">
-            <div className="font-semibold leading-tight">RifaLab</div>
+            <div className="font-semibold leading-tight">Lab</div>
             <div className="text-[11px] text-muted-foreground">{subtitle}</div>
           </div>
         </Link>

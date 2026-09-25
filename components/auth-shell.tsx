@@ -11,9 +11,9 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
         <div className="relative max-w-md">
           <div className="w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-2xl mb-8">
-            R
+            L
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight mb-4">RifaLab</h1>
+          <h1 className="text-4xl font-semibold tracking-tight mb-4">Lab</h1>
           <p className="text-lg text-muted-foreground mb-10">
             Participe de rifas emocionantes e concorra a prêmios incríveis. Gestão simples e completa das suas campanhas.
           </p>
@@ -40,8 +40,8 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       <div className="w-full lg:w-1/2 flex flex-col">
         <div className="flex items-center justify-between p-4 sm:p-6">
           <Link href="/" className="flex items-center gap-2 lg:invisible">
-            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">R</div>
-            <span className="font-semibold">RifaLab</span>
+            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">L</div>
+            <span className="font-semibold">Lab</span>
           </Link>
           <ThemeToggle />
         </div>
