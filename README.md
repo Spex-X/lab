@@ -62,7 +62,7 @@ npm run build      # build de produção
 | Tipo | Acesso |
 |---|---|
 | Visitante | Explora rifas e compra sem cadastro (conta criada automaticamente) |
-| Usuário | Explorar rifas, Meus bilhetes, Perfil, Suporte |
+| Usuário | Explorar sorteios, Meus bilhetes, Perfil, Suporte |
 | Parceiro | + Saldo, Convidar parceiros, Links de divulgação, Saque |
 | Admin | + Painel admin (rifas, usuários, saques), criar/gerenciar rifas |
 

@@ -38,7 +38,7 @@ export default async function MyTicketsPage() {
               {sold.length} {sold.length === 1 ? 'número comprado' : 'números comprados'}
             </h1>
           </div>
-          <Link href="/rifas" className={btnPrimary}>Explorar rifas</Link>
+          <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
@@ -112,7 +112,7 @@ export default async function MyTicketsPage() {
             <div className="text-5xl mb-4">🎫</div>
             <h3 className="text-xl font-semibold mb-2">Você ainda não tem números</h3>
             <p className="text-muted-foreground mb-6">Explore as rifas ativas e escolha seus números da sorte.</p>
-            <Link href="/rifas" className={btnPrimary}>Explorar rifas</Link>
+            <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
           </div>
         )}
       </main>

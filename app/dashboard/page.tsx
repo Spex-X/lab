@@ -4,6 +4,7 @@ import { UserShell } from '@/components/user-shell'
 import { AffiliateDashboard } from '@/components/affiliate-dashboard'
 import { RaffleQuickActions } from '@/components/raffle-quick-actions'
 import { getSessionUser, formatCurrency as fmt, formatDate as fmtDate } from '@/lib/get-session-user'
+import { card, btnPrimary } from '@/components/ui'
 
 const formatCurrency = (v: number | string | null | undefined) => fmt(v, 0)
 const formatDate = (v: string | null | undefined) => fmtDate(v, { day: '2-digit', month: 'long' })
@@ -30,12 +31,124 @@ function initials(name: string) {
 export default async function DashboardPage() {
   const { supabase, session, userName, isAdmin, isAffiliate, profile } = await getSessionUser()
 
-  // Usuário normal vai para as rifas; afiliado vê o painel dele aqui no /dashboard
-  if (!isAdmin) {
-    if (!isAffiliate) redirect('/rifas')
+  // Afiliado vê o painel de parceiro aqui no /dashboard
+  if (!isAdmin && isAffiliate) {
     return (
       <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>
         <AffiliateDashboard userId={session.user.id} affiliateCode={profile?.affiliate_code ?? ''} />
+      </UserShell>
+    )
+  }
+
+  // Usuário normal: painel simples com resumo dos números e sorteios ativos
+  if (!isAdmin) {
+    const [
+      { count: boughtCount },
+      { count: reservedCount },
+      { data: userActiveRaffles },
+    ] = await Promise.all([
+      supabase
+        .from('tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('buyer_id', session.user.id)
+        .eq('status', 'sold'),
+      supabase
+        .from('tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('buyer_id', session.user.id)
+        .eq('status', 'reserved'),
+      supabase
+        .from('raffles')
+        .select('id, title, prize_name, prize_image, ticket_price, total_tickets, available_tickets, draw_date')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ])
+
+    return (
+      <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Minha conta</p>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+              Olá, {userName}!
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Acompanhe seus números e explore os sorteios ativos.
+            </p>
+          </div>
+
+          <section className="grid grid-cols-3 gap-4">
+            <div className={`${card} p-5`}>
+              <p className="text-sm text-muted-foreground mb-2">Números comprados</p>
+              <p className="text-3xl font-semibold text-primary">{boughtCount ?? 0}</p>
+            </div>
+            <div className={`${card} p-5`}>
+              <p className="text-sm text-muted-foreground mb-2">Reservados</p>
+              <p className="text-3xl font-semibold text-warning">{reservedCount ?? 0}</p>
+            </div>
+            <div className={`${card} p-5`}>
+              <p className="text-sm text-muted-foreground mb-2">Sorteios ativos</p>
+              <p className="text-3xl font-semibold">{userActiveRaffles?.length ?? 0}</p>
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-lg">Sorteios em destaque</h2>
+              <Link href="/rifas" className="text-sm text-muted-foreground hover:text-foreground transition">
+                Ver todos
+              </Link>
+            </div>
+            {userActiveRaffles && userActiveRaffles.length > 0 ? (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {userActiveRaffles.map((r: any) => {
+                  const sold = r.total_tickets - r.available_tickets
+                  const pct = Math.round((sold / r.total_tickets) * 100)
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/rifas/${r.id}`}
+                      className="group rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 transition"
+                    >
+                      <div className="h-36 bg-gradient-to-br from-primary/25 to-secondary/25 relative overflow-hidden">
+                        {r.prize_image ? (
+                          <img src={r.prize_image} alt={r.prize_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-4xl">🎁</div>
+                        )}
+                        <span className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-background/90 backdrop-blur text-xs font-semibold text-primary">
+                          {pct}% vendido
+                        </span>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold group-hover:text-primary transition truncate">{r.title}</h3>
+                        <p className="text-sm text-muted-foreground truncate">{r.prize_name}</p>
+                        <p className="text-sm font-semibold mt-2">{formatCurrency(r.ticket_price)}</p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+                <div className="text-4xl mb-3">🎰</div>
+                <p className="font-medium mb-1">Nenhum sorteio ativo no momento</p>
+                <p className="text-sm text-muted-foreground">Novos sorteios em breve. Fique de olho!</p>
+              </div>
+            )}
+          </section>
+
+          <div className="flex flex-wrap gap-3">
+            <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
+            <Link
+              href="/meus-bilhetes"
+              className="px-5 py-2.5 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition"
+            >
+              Meus bilhetes
+            </Link>
+          </div>
+        </main>
       </UserShell>
     )
   }

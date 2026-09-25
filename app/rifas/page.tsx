@@ -21,12 +21,14 @@ export default async function RafflesPage() {
               {raffles?.length || 0} {raffles?.length === 1 ? 'rifa disponível' : 'rifas disponíveis'}
             </h1>
           </div>
-          <Link
-            href="/criar-rifa"
-            className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
-          >
-            Criar rifa
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/criar-rifa"
+              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+            >
+              Criar rifa
+            </Link>
+          )}
         </div>
 
         {raffles && raffles.length > 0 ? (
@@ -76,17 +78,19 @@ export default async function RafflesPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Bilhete</p>
                         <p className="text-lg font-semibold">{formatCurrency(raffle.ticket_price)}</p>
+                        {raffle.draw_date && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Sorteio {formatDate(raffle.draw_date, { day: '2-digit', month: 'short' })}
+                          </p>
+                        )}
                       </div>
-                      {raffle.draw_date && (
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Sorteio</p>
-                          <p className="text-sm font-medium">{formatDate(raffle.draw_date, { day: '2-digit', month: 'short' })}</p>
-                        </div>
-                      )}
+                      <span className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shrink-0">
+                        Participar
+                      </span>
                     </div>
                   </div>
                 </Link>
@@ -97,10 +101,14 @@ export default async function RafflesPage() {
           <div className="rounded-2xl border border-dashed border-border p-16 text-center">
             <div className="text-5xl mb-4">🎰</div>
             <h3 className="text-xl font-semibold mb-2">Nenhuma rifa disponível</h3>
-            <p className="text-muted-foreground mb-6">Seja o primeiro a criar uma rifa!</p>
-            <Link href="/criar-rifa" className="inline-block px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
-              Criar rifa
-            </Link>
+            <p className="text-muted-foreground mb-6">
+              {isAdmin ? 'Seja o primeiro a criar uma rifa!' : 'Novos sorteios em breve. Fique de olho!'}
+            </p>
+            {isAdmin && (
+              <Link href="/criar-rifa" className="inline-block px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
+                Criar rifa
+              </Link>
+            )}
           </div>
         )}
       </main>

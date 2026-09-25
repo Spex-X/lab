@@ -5,7 +5,7 @@ import { card } from '@/components/ui'
 const faqs = [
   {
     q: 'Como faço para participar de uma rifa?',
-    a: 'Acesse "Explorar rifas", escolha o sorteio, selecione seus números disponíveis e finalize o pagamento via PIX. Seus números ficam salvos em "Meus bilhetes".',
+    a: 'Acesse "Explorar sorteios", escolha o sorteio, selecione seus números disponíveis e finalize o pagamento via PIX. Seus números ficam salvos em "Meus bilhetes".',
   },
   {
     q: 'Como funciona o pagamento?',

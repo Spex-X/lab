@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
 
 const userItems = [
-  { href: '/rifas', label: 'Explorar rifas', icon: '🎲' },
+  { href: '/rifas', label: 'Explorar sorteios', icon: '🎲' },
   { href: '/meus-bilhetes', label: 'Meus bilhetes', icon: '🎫' },
   { href: '/perfil', label: 'Meu perfil', icon: '👤' },
   { href: '/suporte', label: 'Suporte', icon: '❓' },

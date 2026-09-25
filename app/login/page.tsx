@@ -61,15 +61,8 @@ function LoginForm() {
             // Vinculação de parceiro não pode bloquear o login
           }
         }
-        // Redireciona conforme o tipo de usuário (respeita ?next=)
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('role, is_affiliate')
-          .eq('id', data.user!.id)
-          .single()
-        const dest =
-          searchParams.get('next') ||
-          (prof?.role === 'admin' || prof?.is_affiliate ? '/dashboard' : '/rifas')
+        // Redireciona pro destino original ou pro dashboard
+        const dest = searchParams.get('next') || '/dashboard'
         router.push(dest)
         router.refresh()
       }
