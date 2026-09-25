@@ -5,17 +5,17 @@ import { UserActions } from './user-actions'
 export default async function AdminUsersPage() {
   const supabase = await createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!currentUser) {
     redirect('/login')
   }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
+    .eq('id', currentUser.id)
     .single()
 
   if (!profile || profile.role !== 'admin') {
@@ -105,7 +105,7 @@ export default async function AdminUsersPage() {
                       userId={user.id}
                       role={user.role}
                       isAffiliate={!!user.is_affiliate}
-                      isSelf={user.id === session.user.id}
+                      isSelf={user.id === currentUser.id}
                     />
                   </td>
                 </tr>

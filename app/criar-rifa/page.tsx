@@ -49,10 +49,10 @@ export default function CreateRafflePage() {
 
     try {
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      if (!session) {
+      if (!user) {
         throw new Error('Você precisa estar logado para criar uma rifa')
       }
 
@@ -60,14 +60,14 @@ export default function CreateRafflePage() {
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
 
       if (!profile) {
         // Criar perfil se não existir
         await supabase.from('profiles').insert({
-          id: session.user.id,
-          email: session.user.email,
+          id: user.id,
+          email: user.email,
         })
       }
 
@@ -81,7 +81,7 @@ export default function CreateRafflePage() {
         available_tickets: parseInt(formData.total_tickets),
         ticket_price: parseFloat(formData.ticket_price),
         draw_date: formData.draw_date ? new Date(formData.draw_date).toISOString() : null,
-        created_by: session.user.id,
+        created_by: user.id,
       }).select().single()
 
       if (raffleError) throw raffleError

@@ -7,10 +7,10 @@ import { formatCurrency } from '@/lib/get-session-user'
 export default async function Home() {
   const supabase = await createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (session) redirect('/dashboard')
+  if (user) redirect('/dashboard')
 
   const { data: featuredRaffles } = await supabase
     .from('raffles')

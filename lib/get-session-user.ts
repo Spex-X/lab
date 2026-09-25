@@ -4,24 +4,24 @@ import { redirect } from 'next/navigation'
 export async function getSessionUser() {
   const supabase = await createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) redirect('/login')
+  if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('role, full_name, avatar_url, affiliate_code, is_affiliate')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single()
 
-  const email = session.user.email ?? ''
+  const email = user.email ?? ''
   const userName = profile?.full_name || email.split('@')[0] || 'Usuário'
 
   return {
     supabase,
-    session,
-    user: session.user,
+    session: { user },
+    user,
     email,
     userName,
     isAdmin: profile?.role === 'admin',

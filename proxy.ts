@@ -27,16 +27,16 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired - required for Server Components
+  // Valida o usuário contra o Auth server (também renova o cookie se expirado)
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // Proteger rotas que requerem autenticação
   const protectedPaths = ['/dashboard', '/minhas-rifas', '/criar-rifa', '/meus-bilhetes', '/afiliados', '/suporte', '/perfil', '/divulgacao', '/saque', '/comissoes']
   const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
 
-  if (isProtectedPath && !session) {
+  if (isProtectedPath && !user) {
     const redirectUrl = new URL('/login', request.url)
     return NextResponse.redirect(redirectUrl)
   }
@@ -46,7 +46,7 @@ export async function proxy(request: NextRequest) {
   const isAdminPath = adminPaths.some(path => request.nextUrl.pathname.startsWith(path))
 
   if (isAdminPath) {
-    if (!session) {
+    if (!user) {
       const redirectUrl = new URL('/login', request.url)
       return NextResponse.redirect(redirectUrl)
     }
@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     if (!profile || profile.role !== 'admin') {
