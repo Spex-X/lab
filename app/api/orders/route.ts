@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase-server'
+import { createPixPayment } from '@/lib/mercado-pago'
+import { sendWelcomeEmail } from '@/lib/email'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import crypto from 'crypto'
 
 export async function POST(request: Request) {
   try {
@@ -13,77 +16,75 @@ export async function POST(request: Request) {
 
     // Validar entrada
     const body = await request.json()
-    const { raffleId, ticketIds, guestName, guestEmail, guestPassword } = body
+    const { raffleId, ticketIds, guestName, guestEmail } = body
 
     let accountCreated = false
 
-    // Guest checkout: cria a conta (ou loga) antes de reservar
+    // Guest checkout: cria a conta com senha aleatória e loga antes de reservar
     if (!user) {
-      if (!guestName?.trim() || !guestEmail?.trim() || !guestPassword) {
+      if (!guestName?.trim() || !guestEmail?.trim()) {
         return NextResponse.json(
-          { error: 'Informe nome, email e senha para continuar', needsAccount: true },
-          { status: 400 }
-        )
-      }
-      if (guestPassword.length < 6) {
-        return NextResponse.json(
-          { error: 'A senha deve ter pelo menos 6 caracteres' },
+          { error: 'Informe nome e email para continuar', needsAccount: true },
           { status: 400 }
         )
       }
 
+      const email = guestEmail.trim()
+      const tempPassword = crypto.randomBytes(24).toString('hex')
       const cookieStorePre = await cookies()
       const refCodePre = cookieStorePre.get('rifa_ref')?.value
 
-      // Tenta login primeiro (email pode já estar cadastrado)
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: guestEmail.trim(),
-        password: guestPassword,
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: tempPassword,
+        options: {
+          data: {
+            full_name: guestName.trim(),
+            ...(refCodePre ? { referred_by_code: refCodePre } : {}),
+          },
+        },
       })
 
-      if (signInError) {
-        // Não existe ou senha errada → tenta criar a conta
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: guestEmail.trim(),
-          password: guestPassword,
-          options: {
-            data: {
-              full_name: guestName.trim(),
-              ...(refCodePre ? { referred_by_code: refCodePre } : {}),
-            },
-          },
-        })
+      // Email já cadastrado → precisa logar pela página de login
+      const alreadyExists =
+        signUpError?.message?.toLowerCase().includes('already') ||
+        (signUpData?.user && signUpData.user.identities?.length === 0)
 
-        if (signUpError) {
-          return NextResponse.json(
-            { error: signUpError.message },
-            { status: 400 }
-          )
-        }
-
-        // Email já cadastrado (Supabase retorna user sem identities)
-        if (!signUpData.user || signUpData.user.identities?.length === 0) {
-          return NextResponse.json(
-            { error: 'Este email já tem conta. Use a senha correta ou faça login.', needsLogin: true },
-            { status: 409 }
-          )
-        }
-
-        // Loga a conta recém-criada para o RPC rodar com auth.uid() dela
-        const { error: reloginError } = await supabase.auth.signInWithPassword({
-          email: guestEmail.trim(),
-          password: guestPassword,
-        })
-
-        if (reloginError) {
-          return NextResponse.json(
-            { error: 'Conta criada! Confirme seu email e faça login para concluir a compra.', needsLogin: true },
-            { status: 400 }
-          )
-        }
-
-        accountCreated = true
+      if (alreadyExists) {
+        return NextResponse.json(
+          { error: 'Este email já tem conta. Faça login para continuar.', needsLogin: true },
+          { status: 409 }
+        )
       }
+
+      if (signUpError || !signUpData.user) {
+        return NextResponse.json(
+          { error: signUpError?.message || 'Não foi possível criar a conta' },
+          { status: 400 }
+        )
+      }
+
+      // Loga a conta recém-criada para o RPC rodar com auth.uid() dela
+      const { error: reloginError } = await supabase.auth.signInWithPassword({
+        email,
+        password: tempPassword,
+      })
+
+      if (reloginError) {
+        return NextResponse.json(
+          { error: 'Conta criada! Faça login para concluir a compra.', needsLogin: true },
+          { status: 400 }
+        )
+      }
+
+      accountCreated = true
+      // Boas-vindas + "defina sua senha" em background — não podem travar a reserva
+      sendWelcomeEmail(email, guestName.trim()).catch(() => {})
+      supabase.auth
+        .resetPasswordForEmail(email, {
+          redirectTo: `${new URL(request.url).origin}/resetar-senha`,
+        })
+        .then(({ error }) => error && console.error('Reset email:', error.message))
 
       const { data: userData } = await supabase.auth.getUser()
       user = userData.user
@@ -153,6 +154,42 @@ export async function POST(request: Request) {
       )
     }
 
+    // Checkout transparente: o PIX já nasce junto com a reserva
+    let pix: { paymentId: string; qrCodeBase64: string; copyPaste: string } | null = null
+    try {
+      const { data: raffle } = await supabase
+        .from('raffles')
+        .select('title')
+        .eq('id', raffleId)
+        .single()
+
+      const pixPayment = await createPixPayment({
+        orderId: result.order_id,
+        totalAmount: result.total_amount,
+        description: `${result.quantity}x bilhetes - ${raffle?.title || 'Sorteio'}`,
+        payerEmail: user.email || undefined,
+      })
+
+      await supabase
+        .from('orders')
+        .update({
+          mercado_pago_payment_id: pixPayment.paymentId,
+          mercado_pago_external_reference: pixPayment.externalReference,
+          pix_copy_paste: pixPayment.copyPaste,
+          pix_qr_code: pixPayment.qrCodeBase64,
+        })
+        .eq('id', result.order_id)
+
+      pix = {
+        paymentId: pixPayment.paymentId,
+        qrCodeBase64: pixPayment.qrCodeBase64,
+        copyPaste: pixPayment.copyPaste,
+      }
+    } catch (e) {
+      // Falha no PIX não invalida a reserva — o front oferece "Gerar QR" de novo
+      console.error('PIX generation failed:', e)
+    }
+
     // Retornar sucesso
     return NextResponse.json({
       success: true,
@@ -162,6 +199,7 @@ export async function POST(request: Request) {
       ticketNumbers: result.ticket_numbers,
       expiresAt: result.expires_at,
       accountCreated,
+      ...pix,
     })
   } catch (error: any) {
     console.error('Order creation error:', error)

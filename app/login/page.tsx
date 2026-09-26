@@ -35,7 +35,7 @@ function LoginForm() {
     try {
       if (isSignUp) {
         const refCode = getRefCookie()
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -46,8 +46,15 @@ function LoginForm() {
           },
         })
         if (error) throw error
-        setSuccess('Cadastro realizado! Verifique seu email para confirmar.')
-        setIsSignUp(false)
+        if (data.session) {
+          // Confirmação de email desativada — já entra logado no dashboard
+          fetch('/api/email/welcome', { method: 'POST' }).catch(() => {})
+          router.push(searchParams.get('next') || '/dashboard')
+          router.refresh()
+        } else {
+          setSuccess('Cadastro realizado! Verifique seu email para confirmar.')
+          setIsSignUp(false)
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error

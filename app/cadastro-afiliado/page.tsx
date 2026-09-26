@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase-client'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AuthShell, authInput, authButton } from '@/components/auth-shell'
 
@@ -17,6 +18,7 @@ export default function AffiliateSignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const router = useRouter()
   const supabase = createClient()
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -26,7 +28,7 @@ export default function AffiliateSignupPage() {
 
     try {
       const refCode = getRefCookie()
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -38,7 +40,22 @@ export default function AffiliateSignupPage() {
         },
       })
       if (error) throw error
-      setDone(true)
+      if (data.session) {
+        // Confirmação de email desativada — garante vínculo e entra no dashboard
+        try {
+          await supabase.rpc('ensure_affiliate_code', {
+            p_user_id: data.user!.id,
+            p_ref_code: refCode,
+          })
+        } catch {
+          // Não bloqueia o acesso
+        }
+        fetch('/api/email/welcome', { method: 'POST' }).catch(() => {})
+        router.push('/dashboard')
+        router.refresh()
+      } else {
+        setDone(true)
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {

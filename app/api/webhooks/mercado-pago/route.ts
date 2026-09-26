@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
+import { sendPurchaseEmail } from '@/lib/email'
 import { getPaymentStatus } from '@/lib/mercado-pago'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -83,6 +85,42 @@ export async function POST(request: Request) {
     }
     if (data?.error) {
       console.log('Webhook: pedido não confirmado -', data.error)
+    }
+
+    // Email de compra só quando o pedido virou 'paid' agora (dedup natural do webhook)
+    if (!error && data && !data.error) {
+      try {
+        const admin = createAdminClient()
+        if (!admin) {
+          console.warn('Webhook: SUPABASE_SECRET_KEY ausente — email de compra pulado')
+        } else {
+          const { data: order } = await admin
+            .from('orders')
+            .select('id, total_amount, user_id, raffle_id')
+            .eq('id', orderId)
+            .single()
+
+          if (order) {
+            const [raffle, tickets, profile] = await Promise.all([
+              admin.from('raffles').select('title').eq('id', order.raffle_id).single(),
+              admin.from('tickets').select('ticket_number').eq('order_id', orderId),
+              admin.from('profiles').select('email, full_name').eq('id', order.user_id).single(),
+            ])
+
+            if (profile.data?.email) {
+              await sendPurchaseEmail({
+                email: profile.data.email,
+                name: profile.data.full_name,
+                raffleTitle: raffle.data?.title || 'Sorteio',
+                ticketNumbers: (tickets.data || []).map((t: any) => t.ticket_number),
+                totalAmount: Number(order.total_amount),
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Webhook: falha no email de compra', e)
+      }
     }
 
     return NextResponse.json({ received: true })
