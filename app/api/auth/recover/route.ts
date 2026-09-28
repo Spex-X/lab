@@ -21,14 +21,17 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin
-    // Falha interna não vaza se o email existe — o front sempre mostra "enviado"
-    sendRecoveryLink(email, `${origin}/resetar-senha`).catch((e) =>
-      console.error('[auth] recover:', e)
-    )
+    const result = await sendRecoveryLink(email, `${origin}/resetar-senha`)
 
+    if (!result.ok) {
+      return NextResponse.json({ ok: false, error: result.error }, { status: 400 })
+    }
     return NextResponse.json({ ok: true })
-  } catch (e) {
+  } catch (e: any) {
     console.error('[auth] recover:', e)
-    return NextResponse.json({ ok: true })
+    return NextResponse.json(
+      { ok: false, error: e?.message || 'Erro interno' },
+      { status: 500 }
+    )
   }
 }

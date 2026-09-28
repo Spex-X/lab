@@ -19,6 +19,6 @@ export async function POST() {
     .eq('id', user.id)
     .single()
 
-  await sendWelcomeEmail(user.email, profile?.full_name)
-  return NextResponse.json({ sent: true })
+  const result = await sendWelcomeEmail(user.email, profile?.full_name)
+  return NextResponse.json({ sent: result.ok, error: result.error })
 }

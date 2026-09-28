@@ -16,15 +16,17 @@ function sender() {
   return { name: 'Sorteios Rápidos', email: from.trim() || 'noreply@sorteiosrelampagos.com.br' }
 }
 
+export type EmailResult = { ok: boolean; error?: string }
+
 async function sendEmail(
   to: { email: string; name?: string | null },
   subject: string,
   html: string
-) {
+): Promise<EmailResult> {
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) {
     console.warn('[email] BREVO_API_KEY não configurada — pulando:', subject)
-    return
+    return { ok: false, error: 'BREVO_API_KEY não configurada' }
   }
 
   try {
@@ -43,10 +45,14 @@ async function sendEmail(
       }),
     })
     if (!res.ok) {
-      console.error('[email] Brevo recusou:', res.status, await res.text())
+      const body = await res.text()
+      console.error('[email] Brevo recusou:', res.status, body)
+      return { ok: false, error: `Brevo recusou (${res.status}): ${body}` }
     }
-  } catch (err) {
+    return { ok: true }
+  } catch (err: any) {
     console.error('[email] Falha ao enviar:', err)
+    return { ok: false, error: err?.message || 'Falha de rede ao enviar' }
   }
 }
 
@@ -76,9 +82,9 @@ function button(href: string, label: string) {
   return `<a href="${href}" style="display:inline-block;background:#14b8a6;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 24px;border-radius:12px;">${label}</a>`
 }
 
-export async function sendWelcomeEmail(email: string, name?: string | null) {
+export async function sendWelcomeEmail(email: string, name?: string | null): Promise<EmailResult> {
   const firstName = name?.split(' ')[0]
-  await sendEmail(
+  return sendEmail(
     { email, name },
     'Bem-vindo ao Sorteios Rápidos!',
     layout(
@@ -95,8 +101,8 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
   )
 }
 
-export async function sendPasswordSetupEmail(email: string, actionLink: string) {
-  await sendEmail(
+export async function sendPasswordSetupEmail(email: string, actionLink: string): Promise<EmailResult> {
+  return sendEmail(
     { email },
     'Defina sua senha — Sorteios Rápidos',
     layout(
@@ -121,7 +127,7 @@ export async function sendPurchaseEmail(opts: {
   raffleTitle: string
   ticketNumbers: number[]
   totalAmount: number
-}) {
+}): Promise<EmailResult> {
   const total = opts.totalAmount.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -134,7 +140,7 @@ export async function sendPurchaseEmail(opts: {
     )
     .join('')
 
-  await sendEmail(
+  return sendEmail(
     { email: opts.email, name: opts.name },
     'Pagamento confirmado — seus números!',
     layout(
