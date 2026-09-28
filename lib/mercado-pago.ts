@@ -32,7 +32,7 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
         description: description || `Pedido #${orderId}`,
         payment_method_id: 'pix',
         payer: {
-          email: payerEmail || 'pagador@rifalab.app',
+          email: payerEmail || 'pagador@sorteiosrapidos.app',
         },
         external_reference: orderId,
         metadata: {

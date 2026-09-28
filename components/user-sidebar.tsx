@@ -70,11 +70,11 @@ export function UserSidebar({
     <aside className="w-64 shrink-0 bg-card border-r border-border hidden lg:flex flex-col sticky top-0 h-screen">
       <div className="p-5 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
-            L
+          <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+            SR
           </div>
           <div>
-            <div className="font-semibold leading-tight">Lab</div>
+            <div className="font-semibold leading-tight">Sorteios Rápidos</div>
             <div className="text-[11px] text-muted-foreground">Painel</div>
           </div>
         </Link>

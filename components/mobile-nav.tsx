@@ -48,10 +48,10 @@ export function MobileNav({
       {/* Topo: logo + tema + avatar */}
       <div className="lg:hidden sticky top-0 z-40 h-14 px-4 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">
-            L
+          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
+            SR
           </div>
-          <span className="font-semibold">Lab</span>
+          <span className="font-semibold">Sorteios Rápidos</span>
         </Link>
         <ThemeToggle />
       </div>

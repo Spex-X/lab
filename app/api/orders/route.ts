@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase-server'
 import { createPixPayment } from '@/lib/mercado-pago'
 import { sendWelcomeEmail } from '@/lib/email'
+import { sendRecoveryLink } from '@/lib/password-reset'
+import { emailDomainCanReceive } from '@/lib/email-domain'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
@@ -30,6 +32,15 @@ export async function POST(request: Request) {
       }
 
       const email = guestEmail.trim()
+
+      // Domínio precisa existir de verdade — impede contas com typo (gmail.comd)
+      if (!(await emailDomainCanReceive(email))) {
+        return NextResponse.json(
+          { error: 'Email inválido — confira o endereço digitado' },
+          { status: 400 }
+        )
+      }
+
       const tempPassword = crypto.randomBytes(24).toString('hex')
       const cookieStorePre = await cookies()
       const refCodePre = cookieStorePre.get('rifa_ref')?.value
@@ -80,11 +91,7 @@ export async function POST(request: Request) {
       accountCreated = true
       // Boas-vindas + "defina sua senha" em background — não podem travar a reserva
       sendWelcomeEmail(email, guestName.trim()).catch(() => {})
-      supabase.auth
-        .resetPasswordForEmail(email, {
-          redirectTo: `${new URL(request.url).origin}/resetar-senha`,
-        })
-        .then(({ error }) => error && console.error('Reset email:', error.message))
+      sendRecoveryLink(email, `${new URL(request.url).origin}/resetar-senha`).catch(() => {})
 
       const { data: userData } = await supabase.auth.getUser()
       user = userData.user

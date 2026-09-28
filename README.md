@@ -1,4 +1,4 @@
-# RifaLab
+# Sorteios Rápidos
 
 Plataforma de sorteios/rifas online com pagamento via PIX, sistema de parceria (comissões em rede) e painéis administrativos.
 

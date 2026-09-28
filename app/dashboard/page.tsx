@@ -439,7 +439,7 @@ export default async function DashboardPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground pt-4">
-          Lab · {userName}
+          Sorteios Rápidos · {userName}
         </p>
       </main>
     </UserShell>

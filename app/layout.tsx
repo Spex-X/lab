@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lab — Sorteios online",
+  title: "Sorteios Rápidos — Sorteios online",
   description: "Escolha seus números, pague por Pix e concorra a prêmios. Sorteios auditados pela Loteria Federal.",
 };
 

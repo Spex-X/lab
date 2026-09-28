@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase-client'
+import { suggestEmailCorrection } from '@/lib/email-suggest'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AuthShell, authInput, authButton } from '@/components/auth-shell'
@@ -18,6 +19,8 @@ export default function AffiliateSignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
+  const [emailAcknowledged, setEmailAcknowledged] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -27,6 +30,22 @@ export default function AffiliateSignupPage() {
     setError('')
 
     try {
+      if (emailSuggestion && !emailAcknowledged) {
+        setEmailAcknowledged(true)
+        setError(`Confira seu email — você quis dizer ${emailSuggestion}?`)
+        return
+      }
+      const check = await fetch('/api/email/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+        .then((r) => r.json())
+        .catch(() => ({ ok: true }))
+      if (!check.ok) {
+        setError(check.error || 'Email inválido — confira o endereço')
+        return
+      }
       const refCode = getRefCookie()
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -116,11 +135,29 @@ export default function AffiliateSignupPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setEmailSuggestion(suggestEmailCorrection(e.target.value))
+                  setEmailAcknowledged(false)
+                }}
                 className={authInput}
                 placeholder="seu@email.com"
                 required
               />
+              {emailSuggestion && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(emailSuggestion)
+                    setEmailSuggestion(null)
+                    setEmailAcknowledged(false)
+                    setError('')
+                  }}
+                  className="mt-1.5 text-left text-xs text-primary font-medium hover:underline"
+                >
+                  Você quis dizer <strong>{emailSuggestion}</strong>? Clique para corrigir.
+                </button>
+              )}
             </div>
 
             <div>

@@ -17,11 +17,11 @@ export function AdminSidebar({ email }: { email: string }) {
     <aside className="w-64 shrink-0 bg-gray-900 text-gray-300 min-h-screen flex flex-col">
       <div className="p-5 border-b border-gray-800">
         <Link href="/admin" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold">
-            L
+          <div className="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-sm">
+            SR
           </div>
           <div>
-            <div className="font-bold text-white leading-tight">Lab</div>
+            <div className="font-bold text-white leading-tight">Sorteios Rápidos</div>
             <div className="text-[11px] text-gray-500">Administração</div>
           </div>
         </Link>

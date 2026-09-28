@@ -1,5 +1,4 @@
-import nodemailer from 'nodemailer'
-
+const BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
 function esc(s: string) {
@@ -13,8 +12,8 @@ function esc(s: string) {
 function sender() {
   const from = process.env.EMAIL_FROM || ''
   const match = from.match(/^\s*(?:"?([^"<]+)"?\s*)?<([^>]+)>\s*$/)
-  if (match) return { name: match[1].trim() || 'Lab', email: match[2].trim() }
-  return { name: 'Lab', email: from.trim() || 'noreply@lab.app' }
+  if (match) return { name: match[1].trim() || 'Sorteios Rápidos', email: match[2].trim() }
+  return { name: 'Sorteios Rápidos', email: from.trim() || 'noreply@sorteiosrelampagos.com.br' }
 }
 
 async function sendEmail(
@@ -22,29 +21,30 @@ async function sendEmail(
   subject: string,
   html: string
 ) {
-  const user = process.env.BREVO_SMTP_USER
-  const pass = process.env.BREVO_SMTP_KEY
-  if (!user || !pass) {
-    console.warn('[email] BREVO_SMTP_USER/BREVO_SMTP_KEY não configuradas — pulando:', subject)
+  const apiKey = process.env.BREVO_API_KEY
+  if (!apiKey) {
+    console.warn('[email] BREVO_API_KEY não configurada — pulando:', subject)
     return
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
-      port: Number(process.env.BREVO_SMTP_PORT) || 2525,
-      auth: { user, pass },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 15000,
+    const res = await fetch(BREVO_URL, {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: sender(),
+        to: [{ email: to.email, ...(to.name ? { name: to.name } : {}) }],
+        subject,
+        htmlContent: html,
+      }),
     })
-    const from = sender()
-    await transporter.sendMail({
-      from: `"${from.name}" <${from.email}>`,
-      to: to.name ? `"${to.name}" <${to.email}>` : to.email,
-      subject,
-      html,
-    })
+    if (!res.ok) {
+      console.error('[email] Brevo recusou:', res.status, await res.text())
+    }
   } catch (err) {
     console.error('[email] Falha ao enviar:', err)
   }
@@ -57,15 +57,15 @@ function layout(title: string, body: string) {
 <tr><td align="center">
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;">
   <tr><td style="padding:24px 32px;border-bottom:1px solid #e4e4e7;">
-    <span style="display:inline-block;background:#14b8a6;color:#ffffff;font-weight:bold;font-size:18px;border-radius:10px;padding:6px 12px;vertical-align:middle;">L</span>
-    <span style="font-size:18px;font-weight:bold;color:#18181b;margin-left:8px;vertical-align:middle;">Lab</span>
+    <span style="display:inline-block;background:#14b8a6;color:#ffffff;font-weight:bold;font-size:14px;border-radius:10px;padding:6px 10px;vertical-align:middle;">SR</span>
+    <span style="font-size:18px;font-weight:bold;color:#18181b;margin-left:8px;vertical-align:middle;">Sorteios Rápidos</span>
   </td></tr>
   <tr><td style="padding:32px;">
     <h1 style="margin:0 0 16px;font-size:22px;color:#18181b;">${title}</h1>
     ${body}
   </td></tr>
   <tr><td style="padding:20px 32px;background:#fafafa;color:#71717a;font-size:12px;">
-    Lab — Sorteios online. Você recebeu este email porque tem uma conta na plataforma.
+    Sorteios Rápidos — sorteios online. Você recebeu este email porque tem uma conta na plataforma.
   </td></tr>
 </table>
 </td></tr></table>
@@ -80,7 +80,7 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
   const firstName = name?.split(' ')[0]
   await sendEmail(
     { email, name },
-    'Bem-vindo ao Lab!',
+    'Bem-vindo ao Sorteios Rápidos!',
     layout(
       `Bem-vindo${firstName ? `, ${esc(firstName)}` : ''}!`,
       `<p style="color:#3f3f46;font-size:15px;line-height:1.6;margin:0 0 16px;">
@@ -91,6 +91,26 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
         É só escolher seus números e pagar com Pix.
       </p>
       ${button(`${SITE_URL}/sorteios`, 'Explorar sorteios')}`
+    )
+  )
+}
+
+export async function sendPasswordSetupEmail(email: string, actionLink: string) {
+  await sendEmail(
+    { email },
+    'Defina sua senha — Sorteios Rápidos',
+    layout(
+      'Definir senha de acesso',
+      `<p style="color:#3f3f46;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        Use o botão abaixo para definir (ou alterar) a senha da sua conta.
+        O link é válido por tempo limitado e só pode ser usado uma vez.
+      </p>
+      <p style="margin:0 0 24px;">
+        ${button(actionLink, 'Definir minha senha')}
+      </p>
+      <p style="color:#71717a;font-size:13px;line-height:1.6;margin:0;">
+        Se você não pediu isso, pode ignorar este email com segurança.
+      </p>`
     )
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase-client'
+import { suggestEmailCorrection } from '@/lib/email-suggest'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -53,6 +54,8 @@ export default function RaffleDetailPage() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
+  const [emailAcknowledged, setEmailAcknowledged] = useState(false)
   const [needsLogin, setNeedsLogin] = useState(false)
   const params = useParams()
   const router = useRouter()
@@ -113,6 +116,8 @@ export default function RaffleDetailPage() {
     if (selectedTickets.length === 0 || creatingOrder) return
     setError('')
     setNeedsLogin(false)
+    setPaymentStatus('pending')
+    if (currentOrder && currentOrder.status !== 'pending') setCurrentOrder(null)
     setShowPaymentModal(true)
     if (isLoggedIn !== false) submitOrder()
   }
@@ -123,6 +128,11 @@ export default function RaffleDetailPage() {
     const isGuest = isLoggedIn === false
     if (isGuest && (!guestName.trim() || !guestEmail.trim())) {
       setError('Preencha nome e email para continuar')
+      return
+    }
+    if (isGuest && emailSuggestion && !emailAcknowledged) {
+      setEmailAcknowledged(true)
+      setError(`Confira seu email — você quis dizer ${emailSuggestion}?`)
       return
     }
 
@@ -226,7 +236,10 @@ export default function RaffleDetailPage() {
 
   const closeModal = () => {
     setShowPaymentModal(false)
-    if (paymentStatus === 'paid' || paymentStatus === 'expired') setCurrentOrder(null)
+    if (paymentStatus === 'paid' || paymentStatus === 'expired') {
+      setCurrentOrder(null)
+      setPaymentStatus('pending')
+    }
   }
 
   if (loading) {
@@ -263,8 +276,8 @@ export default function RaffleDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <Link href="/rifas" className="text-sm text-muted-foreground hover:text-foreground transition">← Voltar</Link>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">L</div>
-            <span className="font-semibold hidden sm:block">Lab</span>
+            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">SR</div>
+            <span className="font-semibold hidden sm:block">Sorteios Rápidos</span>
           </Link>
           <ThemeToggle />
         </div>
@@ -568,10 +581,28 @@ export default function RaffleDetailPage() {
                   <input
                     type="email"
                     value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
+                    onChange={(e) => {
+                      setGuestEmail(e.target.value)
+                      setEmailSuggestion(suggestEmailCorrection(e.target.value))
+                      setEmailAcknowledged(false)
+                    }}
                     placeholder="Seu email"
                     className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                  {emailSuggestion && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGuestEmail(emailSuggestion)
+                        setEmailSuggestion(null)
+                        setEmailAcknowledged(false)
+                        setError('')
+                      }}
+                      className="text-left text-xs text-secondary font-medium hover:underline"
+                    >
+                      Você quis dizer <strong>{emailSuggestion}</strong>? Clique para corrigir.
+                    </button>
+                  )}
                   <p className="text-[11px] text-muted-foreground">
                     Sua conta é criada automaticamente — você recebe um email para definir a senha.
                   </p>
