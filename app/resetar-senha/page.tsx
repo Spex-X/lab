@@ -24,6 +24,32 @@ export default function ResetPasswordPage() {
       }
     }
 
+    // Caminho principal: lê o hash nós mesmos — em modo PKCE o SDK ignora
+    // #access_token na URL, então setamos a sessão explicitamente
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    if (params.get('type') === 'recovery' && accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (error) {
+            settled = true
+            setSessionState('expired')
+          } else {
+            markReady()
+          }
+        })
+    }
+
+    // Fluxo PKCE: alguns links chegam com ?code= em vez do hash
+    const code = new URLSearchParams(window.location.search).get('code')
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (!error) markReady()
+      })
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
