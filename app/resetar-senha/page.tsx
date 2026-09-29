@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase-client'
 import Link from 'next/link'
 import { AuthShell, authInput, authButton } from '@/components/auth-shell'
@@ -11,7 +11,38 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [sessionState, setSessionState] = useState<'checking' | 'ready' | 'expired'>('checking')
   const supabase = createClient()
+
+  // Aguarda a sessão de recovery ser estabelecida (tokens no hash)
+  useEffect(() => {
+    let settled = false
+    const markReady = () => {
+      if (!settled) {
+        settled = true
+        setSessionState('ready')
+      }
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) markReady()
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) markReady()
+    })
+
+    const timeout = setTimeout(() => {
+      if (!settled) setSessionState('expired')
+    }, 4000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
+  }, [])
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,6 +75,36 @@ export default function ResetPasswordPage() {
           <Link href="/login" className={`${authButton} inline-flex w-auto px-6`}>
             Fazer login
           </Link>
+        </div>
+      </AuthShell>
+    )
+  }
+
+  if (sessionState === 'expired') {
+    return (
+      <AuthShell>
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-destructive/15 text-destructive flex items-center justify-center text-3xl mb-6">
+            ⏰
+          </div>
+          <h1 className="text-3xl font-semibold tracking-tight mb-3">Link expirado</h1>
+          <p className="text-muted-foreground mb-8">
+            Este link de redefinição expirou ou já foi usado. Peça um novo para continuar.
+          </p>
+          <Link href="/esqueci-senha" className={`${authButton} inline-flex w-auto px-6`}>
+            Pedir novo link
+          </Link>
+        </div>
+      </AuthShell>
+    )
+  }
+
+  if (sessionState === 'checking') {
+    return (
+      <AuthShell>
+        <div className="text-center py-10">
+          <span className="inline-block w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
+          <p className="text-sm text-muted-foreground">Validando seu link...</p>
         </div>
       </AuthShell>
     )
