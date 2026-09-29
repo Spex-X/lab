@@ -10,6 +10,13 @@ export function RecoveryRedirect() {
   const router = useRouter()
 
   useEffect(() => {
+    // Caminho 1: o token ainda está no hash — preserva e manda direto
+    if (window.location.hash.includes('type=recovery')) {
+      window.location.replace(`/resetar-senha${window.location.hash}`)
+      return
+    }
+
+    // Caminho 2: o SDK consumiu o hash e dispara o evento de recovery
     const supabase = createClient()
     const {
       data: { subscription },
