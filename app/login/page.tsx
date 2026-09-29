@@ -14,18 +14,18 @@ function getRefCookie() {
 }
 
 function LoginForm() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(() => searchParams.has('cadastro'))
   const [showPassword, setShowPassword] = useState(false)
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
   const [emailAcknowledged, setEmailAcknowledged] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/dashboard'
   const supabase = createClient()
 

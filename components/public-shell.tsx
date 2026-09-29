@@ -40,10 +40,10 @@ export function PublicShell({ children, active }: { children: React.ReactNode; a
               Entrar
             </Link>
             <Link
-              href="/sorteios"
+              href="/login?cadastro=1"
               className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
             >
-              Quero participar
+              Cadastro
             </Link>
           </div>
         </div>
