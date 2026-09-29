@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { RefTracker } from "@/components/ref-tracker";
+import { RecoveryRedirect } from "@/components/recovery-redirect";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <RefTracker />
         </Suspense>
+        <RecoveryRedirect />
         {children}
       </body>
     </html>
