@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { PublicShell } from '@/components/public-shell'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
+import { prizePool } from '@/lib/prize'
 
 // Vitrine usada quando ainda não há rifas cadastradas
 const showcase = [
@@ -12,8 +13,6 @@ const showcase = [
     prize_name: 'Caminhonete 0 km + R$ 10.000 no Pix',
     prize_image: '/premios/carro.jpg',
     ticket_price: 9.9,
-    total_tickets: 120000,
-    available_tickets: 33600,
     draw_date: '2026-10-12',
   },
   {
@@ -22,8 +21,6 @@ const showcase = [
     prize_name: 'Moto esportiva 1000cc',
     prize_image: '/premios/moto.jpg',
     ticket_price: 4.9,
-    total_tickets: 60000,
-    available_tickets: 18780,
     draw_date: '2026-09-28',
   },
   {
@@ -32,16 +29,14 @@ const showcase = [
     prize_name: 'iPhone linha Pro + fones sem fio',
     prize_image: '/premios/iphone.jpg',
     ticket_price: 1.9,
-    total_tickets: 26000,
-    available_tickets: 1820,
     draw_date: '2026-09-20',
   },
 ]
 
 const recentWinners = [
-  { number: '047.213', name: 'Camila R.', city: 'Fortaleza, CE', prize: 'Pix de R$ 100 mil' },
-  { number: '012.980', name: 'Jonas M.', city: 'Curitiba, PR', prize: 'SUV compacto 0 km' },
-  { number: '008.451', name: 'Rafaela S.', city: 'Belém, PA', prize: 'Kit Apple Completo' },
+  { numbers: '04 11 23 38 52 67', name: 'Camila R.', city: 'Fortaleza, CE', prize: 'Pix de R$ 100 mil' },
+  { numbers: '02 15 29 44 58 71', name: 'Jonas M.', city: 'Curitiba, PR', prize: 'SUV compacto 0 km' },
+  { numbers: '07 19 33 46 60 74', name: 'Rafaela S.', city: 'Belém, PA', prize: 'Kit Apple Completo' },
 ]
 
 const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
@@ -64,10 +59,22 @@ export default async function Home() {
   const hasReal = (activeRaffles?.length ?? 0) > 0
   const raffles: any[] = hasReal ? activeRaffles! : showcase
   const featured = raffles[0]
-  const featuredSold = featured.total_tickets - featured.available_tickets
-  const featuredPct = Math.round((featuredSold / featured.total_tickets) * 100)
   const featuredHref = featured.id ? `/rifas/${featured.id}` : '/sorteios'
   const minPrice = Math.min(...raffles.map((r) => Number(r.ticket_price)))
+
+  // Arrecadação por rifa pra calcular o prêmio acumulado
+  const raffleIds = hasReal ? raffles.map((r) => r.id) : []
+  const { data: paidOrders } = raffleIds.length
+    ? await supabase
+        .from('orders')
+        .select('raffle_id, total_amount')
+        .in('raffle_id', raffleIds)
+        .eq('status', 'paid')
+    : { data: [] }
+  const revenueByRaffle = new Map<string, number>()
+  ;(paidOrders ?? []).forEach((o: any) => {
+    revenueByRaffle.set(o.raffle_id, (revenueByRaffle.get(o.raffle_id) ?? 0) + Number(o.total_amount || 0))
+  })
 
   return (
     <PublicShell>
@@ -143,19 +150,14 @@ export default async function Home() {
                   </span>
                 )}
               </div>
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="font-semibold text-primary">{featuredPct}% vendido</span>
-                <span className="text-muted-foreground">{fmtInt(featured.available_tickets)} números livres</span>
-              </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
-                  style={{ width: `${featuredPct}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                {fmtInt(featuredSold)} números já reservados — cada um custa {formatCurrency(featured.ticket_price)}.
+              <p className="text-sm text-muted-foreground">
+                Volante de 1 a 75 — monte seu jogo de 6 números por {formatCurrency(featured.ticket_price)}.
               </p>
+              {hasReal && (
+                <p className="text-sm font-semibold text-primary mt-3">
+                  Prêmio acumulado: {formatCurrency(prizePool(revenueByRaffle.get(featured.id)))}
+                </p>
+              )}
             </div>
           </Link>
         </div>
@@ -176,8 +178,6 @@ export default async function Home() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {raffles.map((r, i) => {
-              const sold = r.total_tickets - r.available_tickets
-              const pct = Math.round((sold / r.total_tickets) * 100)
               const href = r.id ? `/rifas/${r.id}` : '/sorteios'
               return (
                 <Link
@@ -205,21 +205,16 @@ export default async function Home() {
                     <h3 className="text-lg font-semibold group-hover:text-primary transition truncate">{r.title}</h3>
                     <p className="text-sm text-muted-foreground truncate mt-0.5">{r.prize_name}</p>
 
-                    <div className="flex items-center justify-between text-xs mt-4 mb-1.5">
-                      <span className="font-semibold text-primary">{pct}% vendido</span>
-                      <span className="text-muted-foreground">{fmtInt(r.available_tickets)} números livres</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">Jogo de 6 números entre 1 e 75</p>
 
                     <div className="flex items-end justify-between mt-5">
                       <div>
-                        <p className="text-xs text-muted-foreground">a partir de</p>
-                        <p className="text-xl font-semibold">{formatCurrency(r.ticket_price)}</p>
+                        <p className="text-xs text-muted-foreground">Prêmio acumulado</p>
+                        <p className="text-xl font-semibold">{formatCurrency(prizePool(revenueByRaffle.get(r.id)))}</p>
+                        <p className="text-[11px] text-muted-foreground">jogo {formatCurrency(r.ticket_price)}</p>
                       </div>
                       <span className="text-sm font-semibold text-primary group-hover:underline">
-                        Escolher números →
+                        Montar jogo →
                       </span>
                     </div>
                   </div>
@@ -243,7 +238,7 @@ export default async function Home() {
               {
                 n: '02',
                 title: 'Resultado auditado',
-                desc: 'Todo sorteio segue a extração da Loteria Federal, com o bilhete premiado publicado na campanha.',
+                desc: 'São sorteados 6 números entre 1 e 75 e os jogos vencedores ficam publicados na campanha.',
               },
               {
                 n: '03',
@@ -281,9 +276,9 @@ export default async function Home() {
 
           <div className="grid md:grid-cols-3 gap-4">
             {recentWinners.map((w) => (
-              <div key={w.number} className="rounded-2xl border border-border bg-card p-5">
-                <p className="font-mono text-2xl font-semibold text-primary">{w.number}</p>
-                <p className="text-xs text-muted-foreground mb-4">Bilhete premiado</p>
+              <div key={w.numbers} className="rounded-2xl border border-border bg-card p-5">
+                <p className="font-mono text-lg font-semibold text-primary">{w.numbers}</p>
+                <p className="text-xs text-muted-foreground mb-4">Jogo premiado (6 acertos)</p>
                 <p className="font-medium">{w.name}</p>
                 <p className="text-xs text-muted-foreground">{w.city}</p>
                 <p className="text-sm font-medium mt-3 pt-3 border-t border-border">{w.prize}</p>

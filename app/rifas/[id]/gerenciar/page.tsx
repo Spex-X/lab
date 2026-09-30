@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase-client'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ImageUpload } from '@/components/image-upload'
+import { prizePool } from '@/lib/prize'
+import { formatCurrency } from '@/lib/get-session-user'
 
 interface Raffle {
   id: string
@@ -19,6 +21,7 @@ interface Raffle {
   draw_date: string | null
   status: string
   created_at: string
+  winning_numbers: number[] | null
 }
 
 interface Order {
@@ -42,6 +45,12 @@ interface Participant {
   total_spent: number
 }
 
+interface DrawResult {
+  winning_numbers: number[]
+  total_bets: number
+  winners: number
+}
+
 type TabType = 'overview' | 'orders' | 'participants' | 'settings'
 
 export default function RaffleManagePage() {
@@ -56,7 +65,6 @@ export default function RaffleManagePage() {
     title: '',
     description: '',
     prize_name: '',
-    prize_value: '',
     prize_image: '',
     draw_date: '',
   })
@@ -64,6 +72,10 @@ export default function RaffleManagePage() {
   const [success, setSuccess] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [drawPick, setDrawPick] = useState<number[]>([])
+  const [drawing, setDrawing] = useState(false)
+  const [drawResult, setDrawResult] = useState<DrawResult | null>(null)
+  const [winners, setWinners] = useState<any[]>([])
   const params = useParams()
   const router = useRouter()
   const supabase = createClient()
@@ -88,11 +100,11 @@ export default function RaffleManagePage() {
       if (raffleError) throw raffleError
 
       setRaffle(raffleData)
+      if (raffleData.winning_numbers) loadWinners(raffleData.winning_numbers)
       setEditForm({
         title: raffleData.title,
         description: raffleData.description || '',
         prize_name: raffleData.prize_name,
-        prize_value: raffleData.prize_value?.toString() || '',
         prize_image: raffleData.prize_image || '',
         draw_date: raffleData.draw_date ? raffleData.draw_date.slice(0, 16) : '',
       })
@@ -129,13 +141,14 @@ export default function RaffleManagePage() {
   const loadParticipants = async () => {
     try {
       const { data: participantsData, error: participantsError } = await supabase
-        .from('tickets')
+        .from('bets')
         .select(`
-          buyer_id,
-          profiles!inner(email, full_name)
+          user_id,
+          profiles!inner(email, full_name),
+          orders!inner(status)
         `)
         .eq('raffle_id', params.id)
-        .eq('status', 'sold')
+        .eq('orders.status', 'paid')
 
       if (participantsError) throw participantsError
 
@@ -143,15 +156,15 @@ export default function RaffleManagePage() {
       const participantMap = new Map<string, Participant>()
 
       participantsData?.forEach((item: any) => {
-        const buyerId = item.buyer_id
-        const existing = participantMap.get(buyerId)
+        const userId = item.user_id
+        const existing = participantMap.get(userId)
 
         if (existing) {
           existing.tickets_count += 1
           existing.total_spent += raffle?.ticket_price || 0
         } else {
-          participantMap.set(buyerId, {
-            id: buyerId,
+          participantMap.set(userId, {
+            id: userId,
             email: item.profiles.email,
             full_name: item.profiles.full_name,
             tickets_count: 1,
@@ -163,6 +176,48 @@ export default function RaffleManagePage() {
       setParticipants(Array.from(participantMap.values()))
     } catch (err: any) {
       console.error('Error loading participants:', err)
+    }
+  }
+
+  const loadWinners = async (winning: number[]) => {
+    const { data } = await supabase
+      .from('bets')
+      .select('numbers, hits, profiles(email, full_name)')
+      .eq('raffle_id', params.id)
+      .gte('hits', 4)
+      .order('hits', { ascending: false })
+    setWinners(data || [])
+  }
+
+  const toggleDrawNumber = (n: number) => {
+    setDrawPick((prev) =>
+      prev.includes(n) ? prev.filter((t) => t !== n) : prev.length < 6 ? [...prev, n] : prev
+    )
+  }
+
+  const handleDraw = async () => {
+    if (drawPick.length !== 6 || drawing) return
+    if (!window.confirm(`Sortear com os números ${[...drawPick].sort((a, b) => a - b).join(', ')}? Isso encerra a rifa e não pode ser desfeito.`)) return
+
+    setDrawing(true)
+    setError('')
+    try {
+      const { data, error: rpcError } = await supabase.rpc('draw_raffle', {
+        p_raffle_id: params.id,
+        p_winning_numbers: [...drawPick].sort((a, b) => a - b),
+      })
+
+      if (rpcError) throw rpcError
+      if (data?.error) throw new Error(data.error)
+
+      setDrawResult(data)
+      setSuccess(`Sorteio realizado! ${data.winners} jogo(s) com 6 acertos.`)
+      loadWinners(drawPick)
+      loadRaffle()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setDrawing(false)
     }
   }
 
@@ -178,7 +233,6 @@ export default function RaffleManagePage() {
           title: editForm.title,
           description: editForm.description,
           prize_name: editForm.prize_name,
-          prize_value: editForm.prize_value ? parseFloat(editForm.prize_value) : null,
           prize_image: editForm.prize_image || null,
           draw_date: editForm.draw_date ? new Date(editForm.draw_date).toISOString() : null,
         })
@@ -272,31 +326,19 @@ export default function RaffleManagePage() {
       if (statsError) throw statsError
 
       const stats = statsData as any
-      const soldTickets = stats.sold_tickets || 0
-      const reservedTickets = stats.reserved_tickets || 0
-      const availableTickets = stats.available_tickets || 0
-      const revenue = stats.revenue || 0
-      const progress = raffle.total_tickets > 0 ? (soldTickets / raffle.total_tickets) * 100 : 0
 
       return {
-        soldTickets,
-        reservedTickets,
-        availableTickets,
-        revenue,
-        progress,
+        soldTickets: stats.sold_bets || 0,
+        reservedTickets: stats.pending_bets || 0,
+        availableTickets: 0,
+        revenue: stats.revenue || 0,
       }
     } catch (err) {
-      // Fallback para cálculo manual se a RPC falhar
-      const soldTickets = raffle.total_tickets - raffle.available_tickets
-      const revenue = soldTickets * raffle.ticket_price
-      const progress = raffle.total_tickets > 0 ? (soldTickets / raffle.total_tickets) * 100 : 0
-
       return {
-        soldTickets,
+        soldTickets: 0,
         reservedTickets: 0,
-        availableTickets: raffle.available_tickets,
-        revenue,
-        progress,
+        availableTickets: 0,
+        revenue: 0,
       }
     }
   }
@@ -318,21 +360,21 @@ export default function RaffleManagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
+    <div className="min-h-screen bg-muted">
+      <nav className="bg-card border border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-4">
-              <Link href="/rifas" className="text-gray-600 hover:text-gray-900">
+              <Link href="/minhas-rifas" className="text-muted-foreground hover:text-foreground">
                 ← Voltar
               </Link>
               <h1 className="text-2xl font-bold text-purple-600">🎰 Gerenciar: {raffle.title}</h1>
             </div>
             <div className="flex items-center space-x-2">
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                raffle.status === 'active' ? 'bg-green-100 text-green-800' :
-                raffle.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
+                raffle.status === 'active' ? 'bg-primary/15 text-primary' :
+                raffle.status === 'paused' ? 'bg-warning/15 text-warning' :
+                'bg-muted text-muted-foreground'
               }`}>
                 {raffle.status === 'active' ? 'Ativa' : raffle.status === 'paused' ? 'Pausada' : raffle.status}
               </span>
@@ -343,19 +385,19 @@ export default function RaffleManagePage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-100 border border-red-400 text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <div className="bg-primary/15 border border-green-400 text-primary px-4 py-3 rounded mb-4">
             {success}
           </div>
         )}
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
+        <div className="border-b border-border mb-6">
           <nav className="-mb-px flex space-x-8">
             {[
               { id: 'overview' as TabType, label: 'Visão Geral' },
@@ -369,7 +411,7 @@ export default function RaffleManagePage() {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }`}
               >
                 {tab.label}
@@ -382,41 +424,31 @@ export default function RaffleManagePage() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-card p-6 rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm">Bilhetes Vendidos</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats?.soldTickets || 0}</p>
+                    <p className="text-muted-foreground text-sm">Jogos vendidos</p>
+                    <p className="text-3xl font-bold text-foreground">{stats?.soldTickets || 0}</p>
                   </div>
                   <div className="text-4xl">🎫</div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow-md">
+              <div className="bg-card p-6 rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm">Reservados</p>
+                    <p className="text-muted-foreground text-sm">Aguardando PIX</p>
                     <p className="text-3xl font-bold text-yellow-600">{stats?.reservedTickets || 0}</p>
                   </div>
                   <div className="text-4xl">⏰</div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow-md">
+              <div className="bg-card p-6 rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm">Disponíveis</p>
-                    <p className="text-3xl font-bold text-green-600">{stats?.availableTickets || 0}</p>
-                  </div>
-                  <div className="text-4xl">✅</div>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Faturamento</p>
+                    <p className="text-muted-foreground text-sm">Faturamento</p>
                     <p className="text-3xl font-bold text-purple-600">R$ {stats?.revenue?.toFixed(2) || '0.00'}</p>
                   </div>
                   <div className="text-4xl">�</div>
@@ -424,37 +456,87 @@ export default function RaffleManagePage() {
               </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Progresso de Vendas</h3>
-              <div className="w-full bg-gray-200 rounded-full h-4">
-                <div
-                  className="bg-purple-600 h-4 rounded-full transition-all"
-                  style={{ width: `${stats?.progress || 0}%` }}
-                />
-              </div>
-              <div className="flex justify-between mt-2 text-sm text-gray-600">
-                <span>{stats?.soldTickets || 0} vendidos</span>
-                <span>{stats?.reservedTickets || 0} reservados</span>
-                <span>{stats?.availableTickets || 0} disponíveis</span>
-                <span>total: {raffle.total_tickets}</span>
-              </div>
-              <div className="mt-4 text-center">
-                <span className="text-2xl font-bold text-blue-600">{stats?.progress?.toFixed(1) || '0'}%</span>
-                <span className="text-gray-600 ml-2">concluído</span>
-              </div>
+            {/* Sorteio */}
+            <div className="bg-card p-6 rounded-lg border border-border">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Sorteio</h3>
+
+              {raffle.winning_numbers ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Números sorteados:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {raffle.winning_numbers.map((n: number) => (
+                        <span key={n} className="w-10 h-10 rounded-lg bg-green-600 text-white font-bold flex items-center justify-center">
+                          {String(n).padStart(2, '0')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {winners.length > 0 ? (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Melhores jogos (4+ acertos):</p>
+                      <div className="space-y-2">
+                        {winners.map((w: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm">
+                            <span className="font-medium truncate">{w.profiles?.full_name || w.profiles?.email}</span>
+                            <span className="font-mono shrink-0">{[...w.numbers].sort((a: number, b: number) => a - b).map((n: number) => String(n).padStart(2, '0')).join(' ')}</span>
+                            <span className={`font-semibold shrink-0 ${w.hits === 6 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                              {w.hits} acertos
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhum jogo com 4+ acertos.</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Escolha os 6 números sorteados (1–75). Isso encerra a rifa e marca os jogos vencedores.
+                  </p>
+                  <div className="grid gap-1.5 mb-4 max-w-lg" style={{ gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' }}>
+                    {Array.from({ length: 75 }, (_, i) => i + 1).map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => toggleDrawNumber(n)}
+                        className={`aspect-square rounded text-xs font-semibold transition ${
+                          drawPick.includes(n)
+                            ? 'bg-green-600 text-white'
+                            : 'bg-muted hover:bg-primary/15 text-foreground'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">
+                      Selecionados: {[...drawPick].sort((a, b) => a - b).join(', ') || '—'} ({drawPick.length}/6)
+                    </span>
+                    <button
+                      onClick={handleDraw}
+                      disabled={drawPick.length !== 6 || drawing}
+                      className="px-5 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition disabled:opacity-40"
+                    >
+                      {drawing ? 'Sorteando...' : '🎲 Confirmar sorteio'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
+            <div className="bg-card p-6 rounded-lg border border-border">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Ações Rápidas</h3>
               <div className="flex gap-4">
                 <button
                   onClick={handleToggleStatus}
                   className={`px-4 py-2 rounded-md font-semibold transition ${
                     raffle.status === 'active'
-                      ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                      : 'bg-green-500 text-white hover:bg-green-600'
+                      ? 'bg-warning/100 text-white hover:bg-yellow-600'
+                      : 'bg-primary/100 text-white hover:bg-green-600'
                   }`}
                 >
                   {raffle.status === 'active' ? '⏸️ Pausar Rifa' : '▶️ Ativar Rifa'}
@@ -472,70 +554,70 @@ export default function RaffleManagePage() {
         )}
 
         {activeTab === 'orders' && (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Pedidos</h3>
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            <div className="p-6 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">Pedidos</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Pedido
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Cliente
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantidade
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Jogos
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Valor
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Data
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-card divide-y divide-border">
                   {orders.length > 0 ? (
                     orders.map((order) => (
                       <tr key={order.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                           #{order.id.slice(0, 8)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {order.user?.email || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {order.quantity}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           R$ {order.total_amount.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            order.status === 'paid' ? 'bg-green-100 text-green-800' :
-                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            order.status === 'paid' ? 'bg-primary/15 text-primary' :
+                            order.status === 'pending' ? 'bg-warning/15 text-warning' :
                             order.status === 'expired' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
+                            'bg-muted text-muted-foreground'
                           }`}>
                             {order.status === 'paid' ? 'Pago' :
                              order.status === 'pending' ? 'Pendente' :
                              order.status === 'expired' ? 'Expirado' : order.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {new Date(order.created_at).toLocaleDateString('pt-BR')}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-4 text-center text-muted-foreground">
                         Nenhum pedido encontrado
                       </td>
                     </tr>
@@ -547,49 +629,49 @@ export default function RaffleManagePage() {
         )}
 
         {activeTab === 'participants' && (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Participantes</h3>
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            <div className="p-6 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">Participantes</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Participante
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bilhetes
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Jogos
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Total Gasto
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-card divide-y divide-border">
                   {participants.length > 0 ? (
                     participants.map((participant) => (
                       <tr key={participant.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                           {participant.full_name || 'Sem nome'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {participant.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {participant.tickets_count}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           R$ {participant.total_spent.toFixed(2)}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={4} className="px-6 py-4 text-center text-muted-foreground">
                         Nenhum participante encontrado
                       </td>
                     </tr>
@@ -601,9 +683,9 @@ export default function RaffleManagePage() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Configurações da Rifa</h3>
+              <h3 className="text-lg font-semibold text-foreground">Configurações da Rifa</h3>
               {!editing && (
                 <button
                   onClick={() => setEditing(true)}
@@ -617,56 +699,49 @@ export default function RaffleManagePage() {
             {editing ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Título
                   </label>
                   <input
                     type="text"
                     value={editForm.title}
                     onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Descrição
                   </label>
                   <textarea
                     value={editForm.description}
                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Nome do Prêmio
                   </label>
                   <input
                     type="text"
                     value={editForm.prize_name}
                     onChange={(e) => setEditForm({ ...editForm, prize_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valor do Prêmio (R$)
-                  </label>
-                  <input
-                    type="number"
-                    value={editForm.prize_value}
-                    onChange={(e) => setEditForm({ ...editForm, prize_value: e.target.value })}
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  <span className="text-muted-foreground">Prêmio acumulado:</span>{' '}
+                  <span className="font-semibold text-primary">{formatCurrency(prizePool(stats?.revenue ?? 0))}</span>
+                  <p className="text-xs text-muted-foreground mt-1">Automático — acumula 17% de cada aposta vendida.</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Imagem do Prêmio
                   </label>
                   <ImageUpload
@@ -676,14 +751,14 @@ export default function RaffleManagePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Data do Sorteio
                   </label>
                   <input
                     type="datetime-local"
                     value={editForm.draw_date}
                     onChange={(e) => setEditForm({ ...editForm, draw_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
@@ -701,12 +776,11 @@ export default function RaffleManagePage() {
                         title: raffle.title,
                         description: raffle.description || '',
                         prize_name: raffle.prize_name,
-                        prize_value: raffle.prize_value?.toString() || '',
                         prize_image: raffle.prize_image || '',
                         draw_date: raffle.draw_date ? raffle.draw_date.slice(0, 16) : '',
                       })
                     }}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-400 transition"
+                    className="flex-1 bg-muted text-foreground py-2 rounded-md hover:bg-muted/60 transition"
                   >
                     Cancelar
                   </button>
@@ -714,39 +788,37 @@ export default function RaffleManagePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <span className="text-gray-600">Título:</span>
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Título:</span>
                   <span className="font-semibold">{raffle.title}</span>
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <span className="text-gray-600">Descrição:</span>
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Descrição:</span>
                   <span className="font-semibold">{raffle.description || 'Sem descrição'}</span>
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <span className="text-gray-600">Prêmio:</span>
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Prêmio:</span>
                   <span className="font-semibold">{raffle.prize_name}</span>
                 </div>
 
-                {raffle.prize_value && (
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <span className="text-gray-600">Valor do Prêmio:</span>
-                    <span className="font-semibold text-green-600">R$ {raffle.prize_value}</span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Prêmio acumulado:</span>
+                  <span className="font-semibold text-primary">{formatCurrency(prizePool(stats?.revenue ?? 0))}</span>
+                </div>
 
                 {raffle.draw_date && (
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <span className="text-gray-600">Data do Sorteio:</span>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded">
+                    <span className="text-muted-foreground">Data do Sorteio:</span>
                     <span className="font-semibold">
                       {new Date(raffle.draw_date).toLocaleString('pt-BR')}
                     </span>
                   </div>
                 )}
 
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <span className="text-gray-600">Criada em:</span>
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Criada em:</span>
                   <span className="font-semibold">
                     {new Date(raffle.created_at).toLocaleDateString('pt-BR')}
                   </span>
@@ -755,13 +827,13 @@ export default function RaffleManagePage() {
             )}
 
             {/* Zona de Perigo */}
-            <div className="mt-8 border-2 border-red-200 rounded-lg p-5 bg-red-50">
-              <h4 className="font-semibold text-red-700 mb-2">⚠️ Zona de perigo</h4>
+            <div className="mt-8 border-2 border-destructive/30 rounded-lg p-5 bg-destructive/10">
+              <h4 className="font-semibold text-destructive mb-2">⚠️ Zona de perigo</h4>
 
               {stats?.soldTickets > 0 ? (
                 <div>
-                  <p className="text-sm text-red-600 mb-4">
-                    Esta rifa já tem {stats.soldTickets} bilhete(s) vendido(s) e não pode ser excluída.
+                  <p className="text-sm text-destructive mb-4">
+                    Esta rifa já tem {stats.soldTickets} jogo(s) vendido(s) e não pode ser excluída.
                     Você pode cancelá-la — ela sairá do ar, mas os registros de venda serão mantidos.
                   </p>
                   {raffle.status !== 'cancelled' && (
@@ -777,13 +849,13 @@ export default function RaffleManagePage() {
                     </button>
                   )}
                   {raffle.status === 'cancelled' && (
-                    <span className="text-sm text-red-600 font-semibold">Esta rifa está cancelada.</span>
+                    <span className="text-sm text-destructive font-semibold">Esta rifa está cancelada.</span>
                   )}
                 </div>
               ) : (
                 <div>
-                  <p className="text-sm text-red-600 mb-4">
-                    Excluir a rifa remove todos os bilhetes e pedidos associados.
+                  <p className="text-sm text-destructive mb-4">
+                    Excluir a rifa remove todos os jogos e pedidos associados.
                     Esta ação não pode ser desfeita.
                   </p>
 
@@ -796,7 +868,7 @@ export default function RaffleManagePage() {
                     </button>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-red-700">Tem certeza?</span>
+                      <span className="text-sm font-semibold text-destructive">Tem certeza?</span>
                       <button
                         onClick={handleDeleteRaffle}
                         disabled={deleting}
@@ -806,7 +878,7 @@ export default function RaffleManagePage() {
                       </button>
                       <button
                         onClick={() => setConfirmDelete(false)}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md font-semibold hover:bg-gray-400 transition"
+                        className="px-4 py-2 bg-muted text-foreground rounded-md font-semibold hover:bg-muted/60 transition"
                       >
                         Não
                       </button>

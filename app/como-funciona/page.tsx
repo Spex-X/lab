@@ -1,41 +1,42 @@
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase-server'
 import { PublicShell } from '@/components/public-shell'
 
 const steps = [
   {
     n: '01',
     title: 'Escolha a campanha',
-    desc: 'Navegue pelos sorteios abertos e escolha o prêmio que você quer concorrer. Cada campanha mostra o preço do número, quantos ainda estão livres e a data do sorteio.',
+    desc: 'Navegue pelos sorteios abertos e escolha o prêmio que você quer concorrer. Cada campanha mostra o preço do jogo e a data do sorteio.',
   },
   {
     n: '02',
-    title: 'Selecione seus números',
-    desc: 'Escolha quantos números quiser entre os disponíveis. Você pode selecionar manualmente ou deixar o sistema sortear números aleatórios pra você.',
+    title: 'Monte seus jogos',
+    desc: 'Escolha 6 números entre 1 e 75 para cada jogo — ou use a Surpresinha pra montar um jogo aleatório. Quantos jogos quiser, cada um é uma chance de ganhar.',
   },
   {
     n: '03',
     title: 'Pague por Pix',
-    desc: 'Um QR Code é gerado na hora. Assim que o pagamento cai, seus números ficam reservados definitivamente no seu nome — sem burocracia.',
+    desc: 'Um QR Code é gerado na hora. Assim que o pagamento cai, seus jogos ficam confirmados no seu nome — sem burocracia.',
   },
   {
     n: '04',
     title: 'Acompanhe pela conta',
-    desc: 'Seus números ficam salvos em "Meus bilhetes". Você acompanha o andamento da campanha e recebe o resultado assim que o sorteio acontece.',
+    desc: 'Seus jogos ficam salvos em "Meus jogos". Você acompanha o andamento da campanha e vê quantos números acertou quando sai o resultado.',
   },
 ]
 
 const faq = [
   {
     q: 'Como é feito o sorteio?',
-    a: 'Todo sorteio segue a extração da Loteria Federal na data indicada na campanha. O bilhete premiado é publicado na página do sorteio e na seção de resultados.',
+    a: 'Na data indicada na campanha são sorteados 6 números entre 1 e 75. Ganha quem acertar mais números — o resultado completo fica publicado na página do sorteio e na seção de resultados.',
   },
   {
     q: 'Preciso ter conta pra participar?',
-    a: 'Não. Você pode escolher os números e pagar direto — a conta é criada automaticamente com o email informado. Assim seus números ficam registrados no seu nome.',
+    a: 'Não. Você pode montar os jogos e pagar direto — a conta é criada automaticamente com o email informado. Assim seus jogos ficam registrados no seu nome.',
   },
   {
     q: 'Quanto tempo tenho pra pagar?',
-    a: 'A reserva vale por 15 minutos após gerar o Pix. Se o pagamento não for identificado nesse prazo, os números voltam a ficar disponíveis.',
+    a: 'O pedido vale por 15 minutos após gerar o Pix. Se o pagamento não for identificado nesse prazo, o pedido expira e você precisa gerar outro.',
   },
   {
     q: 'Como recebo o prêmio?',
@@ -43,7 +44,7 @@ const faq = [
   },
   {
     q: 'Posso participar de vários sorteios?',
-    a: 'Sim! Não há limite de campanhas nem de números por pessoa. Cada campanha é independente.',
+    a: 'Sim! Não há limite de campanhas nem de jogos por pessoa. Cada campanha é independente.',
   },
   {
     q: 'Quem pode participar?',
@@ -51,9 +52,14 @@ const faq = [
   },
 ]
 
-export default function ComoFuncionaPage() {
+export default async function ComoFuncionaPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   return (
-    <PublicShell active="/como-funciona">
+    <PublicShell active="/como-funciona" loggedIn={!!user}>
       <section className="pt-32 pb-16 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-sm font-medium text-primary mb-4 tracking-wide">Como funciona</p>
@@ -61,7 +67,7 @@ export default function ComoFuncionaPage() {
             Participar leva menos de dois minutos
           </h1>
           <p className="text-lg text-muted-foreground mt-6">
-            Escolha, pague por Pix e acompanhe. Transparência do início ao fim, com resultado auditado pela Loteria Federal.
+            Escolha, pague por Pix e acompanhe. Transparência do início ao fim, com resultado publicado na plataforma.
           </p>
         </div>
       </section>
@@ -81,8 +87,8 @@ export default function ComoFuncionaPage() {
       <section className="px-4 sm:px-6 py-20 border-t border-border bg-muted/30">
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-8">
           {[
-            { icon: '⚡', title: 'Confirmação imediata', desc: 'O Pix é reconhecido em segundos e seus números aparecem na sua conta na hora.' },
-            { icon: '🔒', title: 'Sorteio auditado', desc: 'Resultado vinculado à Loteria Federal — ninguém da plataforma escolhe o vencedor.' },
+            { icon: '⚡', title: 'Confirmação imediata', desc: 'O Pix é reconhecido em segundos e seus jogos aparecem na sua conta na hora.' },
+            { icon: '🔒', title: 'Resultado transparente', desc: 'Os 6 números sorteados são publicados na campanha e nos resultados — seus acertos são calculados automaticamente.' },
             { icon: '🚚', title: 'Entrega garantida', desc: 'Prêmio físico ou Pix, entregue com documentação e sem custo pra você.' },
           ].map((b) => (
             <div key={b.title}>

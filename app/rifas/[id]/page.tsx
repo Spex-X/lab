@@ -6,6 +6,7 @@ import { suggestEmailCorrection } from '@/lib/email-suggest'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { prizePool } from '@/lib/prize'
 
 interface Raffle {
   id: string
@@ -19,14 +20,11 @@ interface Raffle {
   ticket_price: number
   draw_date: string | null
   status: string
+  winning_numbers: number[] | null
 }
 
-interface Ticket {
-  id: string
-  ticket_number: number
-  status: string
-  buyer_id: string | null
-}
+const NUMBERS_POOL = Array.from({ length: 75 }, (_, i) => i + 1)
+const BET_SIZE = 6
 
 interface Order {
   id: string
@@ -43,8 +41,8 @@ const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 
 export default function RaffleDetailPage() {
   const [raffle, setRaffle] = useState<Raffle | null>(null)
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [selectedTickets, setSelectedTickets] = useState<number[]>([])
+  const [pick, setPick] = useState<number[]>([])
+  const [jogos, setJogos] = useState<number[][]>([])
   const [loading, setLoading] = useState(true)
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [error, setError] = useState('')
@@ -57,6 +55,7 @@ export default function RaffleDetailPage() {
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
   const [emailAcknowledged, setEmailAcknowledged] = useState(false)
   const [needsLogin, setNeedsLogin] = useState(false)
+  const [arrecadado, setArrecadado] = useState(0)
   const params = useParams()
   const router = useRouter()
   const supabase = createClient()
@@ -85,14 +84,14 @@ export default function RaffleDetailPage() {
       if (raffleError) throw raffleError
       setRaffle(raffleData)
 
-      const { data: ticketsData, error: ticketsError } = await supabase
-        .from('tickets')
-        .select('*')
+      const { data: paidOrders } = await supabase
+        .from('orders')
+        .select('total_amount')
         .eq('raffle_id', params.id)
-        .order('ticket_number')
-
-      if (ticketsError) throw ticketsError
-      setTickets(ticketsData || [])
+        .eq('status', 'paid')
+      setArrecadado(
+        (paidOrders ?? []).reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0)
+      )
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -100,20 +99,32 @@ export default function RaffleDetailPage() {
     }
   }
 
-  const toggleTicket = (ticketNumber: number) => {
-    setSelectedTickets((prev) =>
-      prev.includes(ticketNumber) ? prev.filter((t) => t !== ticketNumber) : [...prev, ticketNumber]
-    )
+  const toggleNumber = (n: number) => {
+    setPick((prev) => {
+      if (prev.includes(n)) return prev.filter((t) => t !== n)
+      if (prev.length >= BET_SIZE) return prev
+      return [...prev, n]
+    })
   }
 
-  const pickRandom = (count: number) => {
-    const pool = tickets.filter((t) => t.status === 'available').map((t) => t.ticket_number)
-    const shuffled = [...pool].sort(() => Math.random() - 0.5)
-    setSelectedTickets(shuffled.slice(0, count))
+  const addJogo = (numbers?: number[]) => {
+    const bet = numbers ?? pick
+    if (bet.length !== BET_SIZE) return
+    setJogos((prev) => [...prev, [...bet].sort((a, b) => a - b)])
+    setPick([])
+  }
+
+  const surpresinha = () => {
+    const shuffled = [...NUMBERS_POOL].sort(() => Math.random() - 0.5)
+    addJogo(shuffled.slice(0, BET_SIZE))
+  }
+
+  const removeJogo = (index: number) => {
+    setJogos((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleBuyClick = () => {
-    if (selectedTickets.length === 0 || creatingOrder) return
+    if (jogos.length === 0 || creatingOrder) return
     setError('')
     setNeedsLogin(false)
     setPaymentStatus('pending')
@@ -146,7 +157,7 @@ export default function RaffleDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           raffleId: params.id,
-          ticketIds: selectedTickets,
+          bets: jogos,
           ...(isGuest ? { guestName: guestName.trim(), guestEmail: guestEmail.trim() } : {}),
         }),
       })
@@ -175,7 +186,8 @@ export default function RaffleDetailPage() {
       })
 
       setPaymentStatus('pending')
-      setSelectedTickets([])
+      setJogos([])
+      setPick([])
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -259,22 +271,21 @@ export default function RaffleDetailPage() {
         <div className="rounded-2xl border border-border bg-card p-8 text-center max-w-md">
           <p className="text-lg font-semibold mb-2">Rifa não encontrada</p>
           {error && <p className="text-sm text-destructive mb-4">{error}</p>}
-          <Link href="/rifas" className="text-sm text-primary hover:underline">← Voltar para rifas</Link>
+          <Link href="/sorteios" className="text-sm text-primary hover:underline">← Voltar para sorteios</Link>
         </div>
       </div>
     )
   }
 
-  const totalAmount = selectedTickets.length * raffle.ticket_price
-  const sold = raffle.total_tickets - raffle.available_tickets
-  const pct = Math.round((sold / raffle.total_tickets) * 100)
+  const totalAmount = jogos.length * raffle.ticket_price
   const isPaused = raffle.status !== 'active'
+  const isDrawn = !!raffle.winning_numbers
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <Link href="/rifas" className="text-sm text-muted-foreground hover:text-foreground transition">← Voltar</Link>
+          <Link href="/sorteios" className="text-sm text-muted-foreground hover:text-foreground transition">← Voltar</Link>
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">SR</div>
             <span className="font-semibold hidden sm:block">Sorteios Rápidos</span>
@@ -283,7 +294,7 @@ export default function RaffleDetailPage() {
         </div>
       </header>
 
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 py-8 ${(selectedTickets.length > 0 || (currentOrder && paymentStatus === 'pending')) && !showPaymentModal ? 'pb-28' : ''}`}>
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 py-8 ${(jogos.length > 0 || pick.length > 0 || (currentOrder && paymentStatus === 'pending')) && !showPaymentModal ? 'pb-28' : ''}`}>
         <div className="grid lg:grid-cols-[400px_1fr] gap-6">
 
           {/* INFO */}
@@ -311,14 +322,12 @@ export default function RaffleDetailPage() {
                     <span className="text-muted-foreground">Prêmio</span>
                     <span className="font-medium text-right">{raffle.prize_name}</span>
                   </div>
-                  {raffle.prize_value && (
-                    <div className="flex justify-between py-2 border-b border-border">
-                      <span className="text-muted-foreground">Valor do prêmio</span>
-                      <span className="font-medium text-primary">{fmt(raffle.prize_value)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-muted-foreground">Bilhete</span>
+                    <span className="text-muted-foreground">Prêmio acumulado</span>
+                    <span className="font-semibold text-primary">{fmt(prizePool(arrecadado))}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Jogo (6 números)</span>
                     <span className="font-semibold">{fmt(raffle.ticket_price)}</span>
                   </div>
                   {raffle.draw_date && (
@@ -329,14 +338,22 @@ export default function RaffleDetailPage() {
                   )}
                 </div>
 
+                {isDrawn && (
+                  <div className="mt-5 rounded-xl bg-primary/10 border border-primary/30 p-4">
+                    <p className="text-xs font-semibold text-primary mb-2">🎉 Números sorteados</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {raffle.winning_numbers!.map((n) => (
+                        <span key={n} className="w-8 h-8 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                          {String(n).padStart(2, '0')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="mt-5">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                    <span>{sold} vendidos</span>
-                    <span>{raffle.available_tickets} disponíveis</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-secondary" style={{ width: `${pct}%` }} />
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Monte jogos de 6 números entre 1 e 75. Quem acertar mais números sorteados ganha.
+                  </p>
                 </div>
               </div>
             </div>
@@ -358,41 +375,51 @@ export default function RaffleDetailPage() {
               )}
 
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Bilhetes selecionados</span>
-                <span className="font-semibold">{selectedTickets.length}</span>
+                <span className="text-muted-foreground">Jogos no pedido</span>
+                <span className="font-semibold">{jogos.length}</span>
               </div>
               <div className="flex justify-between items-end mb-5">
                 <span className="text-muted-foreground text-sm">Total</span>
                 <span className="text-3xl font-semibold tracking-tight">{fmt(totalAmount)}</span>
               </div>
 
-              {selectedTickets.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {[...selectedTickets].sort((a, b) => a - b).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => toggleTicket(n)}
-                      className="px-2 py-1 rounded-md bg-primary/15 text-primary text-xs font-semibold hover:bg-destructive/15 hover:text-destructive transition"
-                      title="Remover"
-                    >
-                      {String(n).padStart(3, '0')} ×
-                    </button>
+              {jogos.length > 0 && (
+                <div className="space-y-2 mb-5 max-h-48 overflow-y-auto">
+                  {jogos.map((jogo, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {jogo.map((n) => (
+                          <span key={n} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary text-xs font-semibold tabular-nums">
+                            {String(n).padStart(2, '0')}
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => removeJogo(i)}
+                        className="text-muted-foreground hover:text-destructive text-lg leading-none shrink-0"
+                        title="Remover jogo"
+                      >
+                        ×
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
 
               <button
                 onClick={handleBuyClick}
-                disabled={creatingOrder || selectedTickets.length === 0 || isPaused}
+                disabled={creatingOrder || jogos.length === 0 || isPaused || isDrawn}
                 className="w-full py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isPaused
+                {isDrawn
+                  ? 'Sorteio encerrado'
+                  : isPaused
                   ? 'Rifa pausada'
                   : creatingOrder
                   ? 'Gerando PIX...'
-                  : selectedTickets.length === 0
-                  ? 'Selecione bilhetes'
-                  : 'Comprar agora'}
+                  : jogos.length === 0
+                  ? 'Monte um jogo de 6 números'
+                  : `Comprar ${jogos.length} ${jogos.length === 1 ? 'jogo' : 'jogos'}`}
               </button>
               <p className="text-[11px] text-muted-foreground text-center mt-3">
                 PIX gerado na hora · Reserva de 15 minutos
@@ -404,60 +431,86 @@ export default function RaffleDetailPage() {
           {/* GRADE */}
           <section className="rounded-2xl border border-border bg-card p-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              <h2 className="text-lg font-semibold">Escolha seus números</h2>
-              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-muted border border-border" />Disponível</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-primary" />Selecionado</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-warning" />Reservado</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-muted-foreground/40" />Vendido</span>
+              <div>
+                <h2 className="text-lg font-semibold">Escolha 6 números</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">De 1 a 75 · cada jogo vale uma chance</p>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-muted border border-border" />Livre</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-primary" />No jogo</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 mb-6">
-              <span className="text-xs text-muted-foreground">Surpresinha:</span>
-              {[5, 10, 20].map((n) => (
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <button
+                onClick={surpresinha}
+                disabled={isPaused || isDrawn}
+                className="px-3 py-1.5 rounded-lg border border-border bg-muted text-xs font-semibold hover:border-primary hover:text-primary transition disabled:opacity-40"
+              >
+                🎲 Surpresinha (jogo aleatório)
+              </button>
+              {pick.length > 0 && (
                 <button
-                  key={n}
-                  onClick={() => pickRandom(n)}
-                  disabled={isPaused}
-                  className="px-3 py-1.5 rounded-lg border border-border bg-muted text-xs font-semibold hover:border-primary hover:text-primary transition disabled:opacity-40"
-                >
-                  +{n} aleatórios
-                </button>
-              ))}
-              {selectedTickets.length > 0 && (
-                <button
-                  onClick={() => setSelectedTickets([])}
+                  onClick={() => setPick([])}
                   className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-destructive transition"
                 >
-                  Limpar
+                  Limpar seleção
                 </button>
               )}
             </div>
 
-            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
-              {tickets.map((ticket) => {
-                const isSelected = selectedTickets.includes(ticket.ticket_number)
-                const isSold = ticket.status === 'sold'
-                const isReserved = ticket.status === 'reserved'
-                const disabled = isSold || isReserved || isPaused
+            {/* Jogo em montagem */}
+            <div className="mb-5 rounded-xl border border-dashed border-border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center">
+                  {pick.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Toque nos números abaixo — faltam 6</span>
+                  ) : (
+                    [...pick].sort((a, b) => a - b).map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => toggleNumber(n)}
+                        className="w-8 h-8 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
+                        title="Remover"
+                      >
+                        {String(n).padStart(2, '0')}
+                      </button>
+                    ))
+                  )}
+                  {pick.length > 0 && pick.length < 6 && (
+                    <span className="text-xs text-muted-foreground ml-1">faltam {6 - pick.length}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => addJogo()}
+                  disabled={pick.length !== 6}
+                  className="shrink-0 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Adicionar jogo
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-2">
+              {NUMBERS_POOL.map((n) => {
+                const isSelected = pick.includes(n)
+                const isWinning = raffle.winning_numbers?.includes(n)
+                const disabled = isPaused || isDrawn || (!isSelected && pick.length >= 6)
 
                 return (
                   <button
-                    key={ticket.id}
-                    onClick={() => !disabled && toggleTicket(ticket.ticket_number)}
+                    key={n}
+                    onClick={() => toggleNumber(n)}
                     disabled={disabled}
                     className={`aspect-square rounded-lg text-sm font-semibold tabular-nums transition ${
-                      isSold
-                        ? 'bg-muted-foreground/20 text-muted-foreground/60 cursor-not-allowed line-through'
-                        : isReserved
-                        ? 'bg-warning/25 text-warning cursor-not-allowed'
+                      isWinning
+                        ? 'bg-secondary text-secondary-foreground ring-2 ring-primary'
                         : isSelected
                         ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105'
-                        : 'bg-muted border border-border hover:border-primary hover:text-primary'
+                        : 'bg-muted border border-border hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-current'
                     }`}
                   >
-                    {String(ticket.ticket_number).padStart(3, '0')}
+                    {String(n).padStart(2, '0')}
                   </button>
                 )
               })}
@@ -467,12 +520,12 @@ export default function RaffleDetailPage() {
       </main>
 
       {/* BARRA DE COMPRA FIXA */}
-      {selectedTickets.length > 0 && !showPaymentModal && (
+      {jogos.length > 0 && !showPaymentModal && (
         <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
             <div>
               <p className="text-xs text-muted-foreground">
-                {selectedTickets.length} {selectedTickets.length === 1 ? 'bilhete' : 'bilhetes'} selecionados
+                {jogos.length} {jogos.length === 1 ? 'jogo' : 'jogos'} de 6 números
               </p>
               <p className="text-lg font-semibold tabular-nums">{fmt(totalAmount)}</p>
             </div>
@@ -488,7 +541,7 @@ export default function RaffleDetailPage() {
       )}
 
       {/* PIX PENDENTE — reabre o QR se fechou o modal */}
-      {!showPaymentModal && selectedTickets.length === 0 && currentOrder && paymentStatus === 'pending' && (
+      {!showPaymentModal && jogos.length === 0 && currentOrder && paymentStatus === 'pending' && (
         <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
             <div>
@@ -534,39 +587,39 @@ export default function RaffleDetailPage() {
               <div className="text-center py-6">
                 <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/15 text-primary flex items-center justify-center text-3xl mb-4">✓</div>
                 <p className="text-lg font-semibold mb-1">Pagamento confirmado!</p>
-                <p className="text-sm text-muted-foreground mb-6">Seus bilhetes já estão garantidos.</p>
+                <p className="text-sm text-muted-foreground mb-6">Seus jogos já estão garantidos.</p>
                 <button onClick={closeModal} className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold">Fechar</button>
               </div>
             ) : paymentStatus === 'expired' ? (
               <div className="text-center py-6">
                 <div className="w-16 h-16 mx-auto rounded-2xl bg-destructive/15 text-destructive flex items-center justify-center text-3xl mb-4">⏰</div>
                 <p className="text-lg font-semibold mb-1">Pedido expirado</p>
-                <p className="text-sm text-muted-foreground mb-6">Os números foram liberados. Tente novamente.</p>
+                <p className="text-sm text-muted-foreground mb-6">O pedido venceu. Monte seus jogos novamente.</p>
                 <button onClick={closeModal} className="px-6 py-2.5 rounded-xl bg-muted font-semibold">Fechar</button>
               </div>
             ) : !currentOrder ? (
               creatingOrder ? (
                 <div className="text-center py-10">
                   <span className="inline-block w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
-                  <p className="text-sm text-muted-foreground">Reservando seus números e gerando o PIX...</p>
+                  <p className="text-sm text-muted-foreground">Registrando seus jogos e gerando o PIX...</p>
                 </div>
               ) : isLoggedIn === false ? (
                 <div className="space-y-4">
                   <div className="rounded-xl bg-muted p-4 flex items-center justify-between">
                     <div>
                       <p className="text-xs text-muted-foreground">
-                        {selectedTickets.length} {selectedTickets.length === 1 ? 'bilhete' : 'bilhetes'}
+                        {jogos.length} {jogos.length === 1 ? 'jogo' : 'jogos'} de 6 números
                       </p>
                       <p className="text-2xl font-semibold tabular-nums">{fmt(totalAmount)}</p>
                     </div>
-                    <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
-                      {[...selectedTickets].sort((a, b) => a - b).slice(0, 8).map((n) => (
-                        <span key={n} className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-xs font-semibold">
-                          {String(n).padStart(3, '0')}
-                        </span>
+                    <div className="space-y-1 max-w-[200px]">
+                      {jogos.slice(0, 3).map((jogo, i) => (
+                        <p key={i} className="text-xs font-mono text-muted-foreground text-right truncate">
+                          {jogo.map((n) => String(n).padStart(2, '0')).join(' ')}
+                        </p>
                       ))}
-                      {selectedTickets.length > 8 && (
-                        <span className="px-2 py-0.5 text-xs text-muted-foreground">+{selectedTickets.length - 8}</span>
+                      {jogos.length > 3 && (
+                        <p className="text-xs text-muted-foreground text-right">+{jogos.length - 3} jogos</p>
                       )}
                     </div>
                   </div>

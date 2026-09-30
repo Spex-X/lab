@@ -21,11 +21,11 @@ export function RaffleQuickActions({ id, title, soldCount }: Props) {
     e.stopPropagation()
 
     if (soldCount > 0) {
-      alert(`"${title}" já tem ${soldCount} bilhete(s) vendido(s) e não pode ser excluída. Use "Editar" para cancelá-la.`)
+      alert(`"${title}" já tem ${soldCount} jogo(s) vendido(s) e não pode ser excluída. Use "Editar" para cancelá-la.`)
       return
     }
 
-    if (!window.confirm(`Excluir "${title}"? Todos os bilhetes serão apagados. Não pode ser desfeito.`)) {
+    if (!window.confirm(`Excluir "${title}"? Todos os jogos e pedidos serão apagados. Não pode ser desfeito.`)) {
       return
     }
 

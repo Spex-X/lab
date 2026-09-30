@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       .eq('id', order.raffle_id)
       .single()
 
-    const description = `${order.quantity}x bilhetes - ${raffle?.title || 'Rifa'}`
+    const description = `${order.quantity}x jogos - ${raffle?.title || 'Rifa'}`
 
     // Criar pagamento PIX no Mercado Pago
     const pixPayment = await createPixPayment({

@@ -6,10 +6,10 @@ import { ThemeToggle } from './theme-toggle'
 
 const userItems = [
   { href: '/dashboard', label: 'Início', icon: '🏠', exact: true },
-  { href: '/rifas', label: 'Explorar sorteios', icon: '🎲' },
-  { href: '/meus-bilhetes', label: 'Meus bilhetes', icon: '🎫' },
+  { href: '/sorteios', label: 'Explorar sorteios', icon: '🎲' },
+  { href: '/meus-bilhetes', label: 'Meus jogos', icon: '🎫' },
+  { href: '/saque', label: 'Saque', icon: '�' },
   { href: '/perfil', label: 'Meu perfil', icon: '👤' },
-  { href: '/suporte', label: 'Suporte', icon: '❓' },
 ]
 
 const affiliateItems = [
@@ -22,9 +22,11 @@ const affiliateItems = [
 
 const adminItems = [
   { href: '/dashboard', label: 'Visão geral', icon: '📊', exact: true },
-  { href: '/minhas-rifas', label: 'Minhas rifas', icon: '🎰' },
-  { href: '/criar-rifa', label: 'Criar rifa', icon: '➕' },
-  { href: '/admin', label: 'Painel Admin', icon: '🔒' },
+  { href: '/admin/saldo', label: 'Saldo', icon: '💰' },
+  { href: '/admin/ranking', label: 'Ranking', icon: '🏆' },
+  { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
+  { href: '/admin/saques', label: 'Saques', icon: '💸' },
+  { href: '/criar-rifa', label: 'Criar jogo', icon: '➕' },
 ]
 
 export function initials(name: string) {
@@ -81,26 +83,22 @@ export function UserSidebar({
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Menu
-        </p>
-        {isAffiliate && !isAdmin
-          ? affiliateItems.map((it) => (
-              <NavLink key={it.href} {...it} activeClass="bg-primary/15 text-primary" />
-            ))
-          : userItems
-              .filter((it) => !(isAdmin && it.href === '/dashboard'))
-              .map((it) => (
-                <NavLink key={it.href} {...it} activeClass="bg-primary/15 text-primary" />
-              ))}
-
-        {isAdmin && (
+        {isAdmin ? (
           <>
-            <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Administração
             </p>
             {adminItems.map((it) => (
               <NavLink key={it.href} {...it} activeClass="bg-secondary/20 text-secondary" />
+            ))}
+          </>
+        ) : (
+          <>
+            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Menu
+            </p>
+            {(isAffiliate ? affiliateItems : userItems).map((it) => (
+              <NavLink key={it.href} {...it} activeClass="bg-primary/15 text-primary" />
             ))}
           </>
         )}

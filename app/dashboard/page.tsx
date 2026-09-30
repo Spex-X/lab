@@ -40,7 +40,7 @@ export default async function DashboardPage() {
     )
   }
 
-  // Usuário normal: painel simples com resumo dos números e sorteios ativos
+  // Usuário normal: painel simples com resumo dos jogos e sorteios ativos
   if (!isAdmin) {
     const [
       { count: boughtCount },
@@ -48,21 +48,20 @@ export default async function DashboardPage() {
       { data: userActiveRaffles },
     ] = await Promise.all([
       supabase
-        .from('tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('buyer_id', session.user.id)
-        .eq('status', 'sold'),
+        .from('bets')
+        .select('id, orders!inner(status)', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('orders.status', 'paid'),
       supabase
-        .from('tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('buyer_id', session.user.id)
-        .eq('status', 'reserved'),
+        .from('bets')
+        .select('id, orders!inner(status)', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('orders.status', 'pending'),
       supabase
         .from('raffles')
         .select('id, title, prize_name, prize_image, ticket_price, total_tickets, available_tickets, draw_date')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(3),
+        .order('created_at', { ascending: false }),
     ])
 
     return (
@@ -74,17 +73,17 @@ export default async function DashboardPage() {
               Olá, {userName}!
             </h1>
             <p className="text-muted-foreground mt-2">
-              Acompanhe seus números e explore os sorteios ativos.
+              Acompanhe seus jogos e explore os sorteios ativos.
             </p>
           </div>
 
           <section className="grid grid-cols-3 gap-3 sm:gap-4">
             <div className={`${card} p-5`}>
-              <p className="text-sm text-muted-foreground mb-2">Números comprados</p>
+              <p className="text-sm text-muted-foreground mb-2">Jogos confirmados</p>
               <p className="text-3xl font-semibold text-primary">{boughtCount ?? 0}</p>
             </div>
             <div className={`${card} p-5`}>
-              <p className="text-sm text-muted-foreground mb-2">Reservados</p>
+              <p className="text-sm text-muted-foreground mb-2">Aguardando PIX</p>
               <p className="text-3xl font-semibold text-warning">{reservedCount ?? 0}</p>
             </div>
             <div className={`${card} p-5`}>
@@ -94,17 +93,10 @@ export default async function DashboardPage() {
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg">Sorteios em destaque</h2>
-              <Link href="/rifas" className="text-sm text-muted-foreground hover:text-foreground transition">
-                Ver todos
-              </Link>
-            </div>
+            <h2 className="font-semibold text-lg mb-4">Sorteios abertos</h2>
             {userActiveRaffles && userActiveRaffles.length > 0 ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {userActiveRaffles.map((r: any) => {
-                  const sold = r.total_tickets - r.available_tickets
-                  const pct = Math.round((sold / r.total_tickets) * 100)
                   return (
                     <Link
                       key={r.id}
@@ -118,7 +110,7 @@ export default async function DashboardPage() {
                           <div className="w-full h-full flex items-center justify-center text-4xl">🎁</div>
                         )}
                         <span className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-background/90 backdrop-blur text-xs font-semibold text-primary">
-                          {pct}% vendido
+                          6 números / jogo
                         </span>
                       </div>
                       <div className="p-4">
@@ -140,13 +132,7 @@ export default async function DashboardPage() {
           </section>
 
           <div className="flex flex-wrap gap-3">
-            <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
-            <Link
-              href="/meus-bilhetes"
-              className="px-5 py-2.5 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition"
-            >
-              Meus bilhetes
-            </Link>
+            <Link href="/meus-bilhetes" className={btnPrimary}>Meus jogos</Link>
           </div>
         </main>
       </UserShell>
@@ -197,18 +183,18 @@ export default async function DashboardPage() {
   const todayTickets = (todayOrders ?? []).reduce((s, o) => s + Number(o.quantity ?? 0), 0)
 
   const featured = activeRaffles[0]
-  const featuredSold = featured ? featured.total_tickets - featured.available_tickets : 0
-  const featuredPct = featured ? Math.round((featuredSold / featured.total_tickets) * 100) : 0
 
-  const { data: featuredTickets } = featured
+  const { data: featuredBets } = featured
     ? await supabase
-        .from('tickets')
-        .select('ticket_number')
+        .from('bets')
+        .select('numbers, orders!inner(status)')
         .eq('raffle_id', featured.id)
-        .eq('status', 'sold')
-        .order('purchased_at', { ascending: false })
+        .eq('orders.status', 'paid')
+        .order('created_at', { ascending: false })
         .limit(5)
     : { data: [] }
+
+  const featuredJogos = (featuredBets ?? []).length
 
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>
@@ -223,20 +209,6 @@ export default async function DashboardPage() {
               Saldo acumulado e atividade de hoje
             </h1>
           </div>
-          <div className="flex gap-3">
-            <Link
-              href="/meus-bilhetes"
-              className="px-5 py-2.5 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition"
-            >
-              Gerenciar números
-            </Link>
-            <Link
-              href="/criar-rifa"
-              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
-            >
-              Criar rifa
-            </Link>
-          </div>
         </section>
 
         {/* STATS */}
@@ -250,7 +222,7 @@ export default async function DashboardPage() {
           <div className="rounded-2xl border border-border bg-card p-5">
             <p className="text-sm text-muted-foreground mb-3">Vendido hoje</p>
             <p className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums break-all">{formatCurrency(todayRevenue)}</p>
-            <p className="text-xs text-muted-foreground mt-2">{todayTickets} números</p>
+            <p className="text-xs text-muted-foreground mt-2">{todayTickets} jogos</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5">
@@ -278,43 +250,27 @@ export default async function DashboardPage() {
                 <p className="text-sm text-muted-foreground mb-2">Campanha em destaque</p>
                 <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">{featured.title}</h2>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Sorteio {formatDate(featured.draw_date)} · {featured.total_tickets} números · {formatCurrency(featured.ticket_price)}
+                  Sorteio {formatDate(featured.draw_date)} · jogos de 6 números (1–75) · {formatCurrency(featured.ticket_price)}
                 </p>
               </div>
               <Link
                 href={`/rifas/${featured.id}`}
                 className="shrink-0 px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold hover:opacity-90 transition"
               >
-                Vender número
+                Ver sorteio
               </Link>
             </div>
 
-            <div className="flex items-end justify-between mb-3">
-              <p className="text-sm text-muted-foreground">Progresso de números vendidos</p>
-              <p className="text-2xl font-semibold">
-                {featuredSold}<span className="text-muted-foreground">/{featured.total_tickets}</span>
-              </p>
-            </div>
-
-            <div className="h-3 rounded-full bg-muted overflow-hidden mb-2">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
-                style={{ width: `${featuredPct}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mb-6">{featuredPct}% vendido</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              <span className="text-2xl font-semibold text-foreground">{featuredJogos}</span> jogos vendidos
+            </p>
 
             <div className="flex flex-wrap gap-2">
-              {(featuredTickets ?? []).map((t) => (
-                <span key={t.ticket_number} className="px-3 py-1.5 rounded-lg bg-muted text-sm">
-                  Nº {String(t.ticket_number).padStart(3, '0')} · <span className="text-primary">vendido</span>
+              {(featuredBets ?? []).map((b: any, i: number) => (
+                <span key={i} className="px-3 py-1.5 rounded-lg bg-muted text-sm font-mono">
+                  {[...b.numbers].sort((a: number, z: number) => a - z).map((n: number) => String(n).padStart(2, '0')).join(' ')}
                 </span>
               ))}
-              {featured.available_tickets > 0 && (
-                <span className="px-3 py-1.5 rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-                  +{featured.available_tickets} números
-                </span>
-              )}
             </div>
           </section>
         ) : (
@@ -342,8 +298,6 @@ export default async function DashboardPage() {
             {myRaffles.length > 0 ? (
               <div className="space-y-2">
                 {myRaffles.slice(0, 6).map((r) => {
-                  const sold = r.total_tickets - r.available_tickets
-                  const pct = Math.round((sold / r.total_tickets) * 100)
                   const statusLabel: Record<string, string> = {
                     active: 'Ativa',
                     paused: 'Pausada',
@@ -374,14 +328,9 @@ export default async function DashboardPage() {
                             {statusLabel[r.status] ?? r.status}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground tabular-nums">{sold}/{r.total_tickets}</span>
-                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">jogos de 6 números · 1–75</p>
                       </Link>
-                      <RaffleQuickActions id={r.id} title={r.title} soldCount={sold} />
+                      <RaffleQuickActions id={r.id} title={r.title} soldCount={0} />
                     </div>
                   )
                 })}
@@ -423,7 +372,7 @@ export default async function DashboardPage() {
                         <div className="min-w-0">
                           <p className="font-medium truncate">{buyer}</p>
                           <p className="text-xs text-muted-foreground">
-                            {o.quantity} {o.quantity === 1 ? 'número' : 'números'} · {timeAgo(o.created_at)}
+                            {o.quantity} {o.quantity === 1 ? 'jogo' : 'jogos'} · {timeAgo(o.created_at)}
                           </p>
                         </div>
                       </div>

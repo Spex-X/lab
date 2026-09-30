@@ -125,15 +125,14 @@ export async function sendPurchaseEmail(opts: {
   email: string
   name?: string | null
   raffleTitle: string
-  ticketNumbers: number[]
+  ticketNumbers: (number | string)[]
   totalAmount: number
 }): Promise<EmailResult> {
   const total = opts.totalAmount.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   })
-  const chips = [...opts.ticketNumbers]
-    .sort((a, b) => a - b)
+  const chips = opts.ticketNumbers
     .map(
       (n) =>
         `<span style="display:inline-block;background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;font-weight:600;border-radius:8px;padding:4px 10px;margin:0 6px 6px 0;">${n}</span>`
@@ -142,7 +141,7 @@ export async function sendPurchaseEmail(opts: {
 
   return sendEmail(
     { email: opts.email, name: opts.name },
-    'Pagamento confirmado — seus números!',
+    'Pagamento confirmado — seus jogos!',
     layout(
       'Pagamento confirmado!',
       `<p style="color:#3f3f46;font-size:15px;margin:0 0 4px;">
@@ -151,12 +150,12 @@ export async function sendPurchaseEmail(opts: {
       <p style="color:#3f3f46;font-size:15px;margin:0 0 20px;">
         Total pago: <strong>${total}</strong>
       </p>
-      <p style="color:#71717a;font-size:13px;margin:0 0 8px;">Seus números:</p>
+      <p style="color:#71717a;font-size:13px;margin:0 0 8px;">Seus jogos (6 números cada):</p>
       <div style="margin:0 0 20px;">${chips || '—'}</div>
       <p style="color:#3f3f46;font-size:15px;line-height:1.6;margin:0 0 24px;">
         Boa sorte! Acompanhe o resultado na plataforma.
       </p>
-      ${button(`${SITE_URL}/meus-bilhetes`, 'Ver meus bilhetes')}`
+      ${button(`${SITE_URL}/meus-bilhetes`, 'Ver meus jogos')}`
     )
   )
 }

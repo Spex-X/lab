@@ -3,30 +3,43 @@ import { createClient } from '@/lib/supabase-server'
 import { PublicShell } from '@/components/public-shell'
 import { formatDate } from '@/lib/get-session-user'
 
-// Histórico ilustrativo até termos sorteios encerrados com ganhador registrado
-const pastWinners = [
-  { number: '047.213', name: 'Camila R.', city: 'Fortaleza, CE', prize: 'Pix de R$ 100 mil', date: '30/08/2026' },
-  { number: '012.980', name: 'Jonas M.', city: 'Curitiba, PR', prize: 'SUV compacto 0 km', date: '14/08/2026' },
-  { number: '008.451', name: 'Rafaela S.', city: 'Belém, PA', prize: 'Kit Apple Completo', date: '02/08/2026' },
-  { number: '021.336', name: 'Diego A.', city: 'Porto Alegre, RS', prize: 'Moto street 300cc', date: '19/07/2026' },
-  { number: '003.117', name: 'Larissa F.', city: 'Recife, PE', prize: 'Pix de R$ 20 mil', date: '05/07/2026' },
-  { number: '015.842', name: 'Marcos T.', city: 'Goiânia, GO', prize: 'Notebook gamer', date: '21/06/2026' },
-]
-
 export default async function ResultadosPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const { data: completed } = await supabase
     .from('raffles')
-    .select('id, title, prize_name, prize_image, draw_date, total_tickets')
+    .select('id, title, prize_name, prize_image, draw_date, winning_numbers, drawn_at')
     .eq('status', 'completed')
-    .order('draw_date', { ascending: false })
+    .not('winning_numbers', 'is', null)
+    .order('drawn_at', { ascending: false })
     .limit(12)
+
+  // Ganhadores: jogos com mais acertos das rifas encerradas
+  const raffleIds = (completed ?? []).map((r) => r.id)
+  const { data: topBets } = raffleIds.length
+    ? await supabase
+        .from('bets')
+        .select('numbers, hits, raffle_id, profiles(full_name)')
+        .in('raffle_id', raffleIds)
+        .gte('hits', 4)
+        .order('hits', { ascending: false })
+        .limit(30)
+    : { data: [] }
+
+  const winnersByRaffle = new Map<string, any[]>()
+  ;(topBets ?? []).forEach((b: any) => {
+    const list = winnersByRaffle.get(b.raffle_id) ?? []
+    list.push(b)
+    winnersByRaffle.set(b.raffle_id, list)
+  })
 
   const hasCompleted = (completed?.length ?? 0) > 0
 
   return (
-    <PublicShell active="/resultados">
+    <PublicShell active="/resultados" loggedIn={!!user}>
       <section className="pt-32 pb-12 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-sm font-medium text-primary mb-4 tracking-wide">Resultados</p>
@@ -34,86 +47,79 @@ export default async function ResultadosPage() {
             Sorteios encerrados e ganhadores
           </h1>
           <p className="text-lg text-muted-foreground mt-6">
-            Todo resultado segue a extração da Loteria Federal. Nomes reduzidos para preservar a privacidade.
+            Cada jogo tem 6 números entre 1 e 75. Ganha quem acertar mais números sorteados.
           </p>
         </div>
       </section>
 
-      {hasCompleted && (
+      {hasCompleted ? (
         <section className="px-4 sm:px-6 pb-16">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-xl font-semibold mb-6">Campanhas encerradas</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {completed!.map((r) => (
-                <Link
-                  key={r.id}
-                  href={`/rifas/${r.id}`}
-                  className="group rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 transition"
-                >
-                  <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                    {r.prize_image ? (
-                      <img src={r.prize_image} alt={r.prize_name} className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl">🏆</div>
-                    )}
-                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-background/85 backdrop-blur text-xs font-medium">
-                      Encerrado
-                    </span>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-semibold truncate group-hover:text-primary transition">{r.title}</h3>
-                    <p className="text-sm text-muted-foreground truncate mt-0.5">{r.prize_name}</p>
-                    {r.draw_date && (
-                      <p className="text-xs text-muted-foreground mt-3">
-                        Sorteado em {formatDate(r.draw_date, { day: '2-digit', month: '2-digit', year: 'numeric' })}
+          <div className="max-w-6xl mx-auto space-y-6">
+            {(completed ?? []).map((r) => {
+              const winners = winnersByRaffle.get(r.id) ?? []
+              return (
+                <div key={r.id} className="rounded-2xl border border-border bg-card p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-5">
+                    <div className="w-full md:w-20 h-24 md:h-20 rounded-xl bg-muted overflow-hidden shrink-0">
+                      {r.prize_image ? (
+                        <img src={r.prize_image} alt={r.prize_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl">🏆</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{r.title}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{r.prize_name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sorteado em {formatDate(r.drawn_at ?? r.draw_date, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </p>
-                    )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Números sorteados</p>
+                      <div className="flex gap-1.5">
+                        {r.winning_numbers?.map((n: number) => (
+                          <span key={n} className="w-9 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
+                            {String(n).padStart(2, '0')}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </Link>
-              ))}
-            </div>
+
+                  {winners.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-border space-y-1.5">
+                      {winners.map((w: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="font-medium truncate">{w.profiles?.full_name || 'Participante'}</span>
+                          <span className="font-mono text-muted-foreground shrink-0">
+                            {[...w.numbers].sort((a: number, b: number) => a - b).map((n: number) => String(n).padStart(2, '0')).join(' ')}
+                          </span>
+                          <span className={`font-semibold shrink-0 ${w.hits === 6 ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {w.hits === 6 ? '🏆 6 acertos' : `${w.hits} acertos`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ) : (
+        <section className="px-4 sm:px-6 pb-16">
+          <div className="max-w-6xl mx-auto rounded-2xl border border-dashed border-border p-16 text-center">
+            <div className="text-5xl mb-4">🎲</div>
+            <h3 className="text-xl font-semibold mb-2">Nenhum sorteio realizado ainda</h3>
+            <p className="text-muted-foreground">Os resultados vão aparecer aqui assim que os primeiros sorteios forem feitos.</p>
           </div>
         </section>
       )}
 
-      <section className="px-4 sm:px-6 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-xl font-semibold mb-6">Últimos ganhadores</h2>
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
-            <div className="hidden md:grid grid-cols-4 gap-4 px-6 py-3 bg-muted/40 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <span>Bilhete premiado</span>
-              <span>Ganhador</span>
-              <span>Prêmio</span>
-              <span className="text-right">Data</span>
-            </div>
-            <div className="divide-y divide-border">
-              {pastWinners.map((w) => (
-                <div key={w.number} className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 py-5 items-center">
-                  <div>
-                    <p className="font-mono text-lg font-semibold text-primary">{w.number}</p>
-                    <p className="text-xs text-muted-foreground md:hidden">Bilhete premiado</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">{w.name}</p>
-                    <p className="text-xs text-muted-foreground">{w.city}</p>
-                  </div>
-                  <div className="col-span-2 md:col-span-1">
-                    <p className="font-medium">{w.prize}</p>
-                  </div>
-                  <div className="col-span-2 md:col-span-1 md:text-right">
-                    <p className="text-sm text-muted-foreground">{w.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="px-4 sm:px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">O próximo nome pode ser o seu</h2>
-          <p className="text-muted-foreground mb-10">Veja as campanhas abertas e garanta seus números.</p>
+          <p className="text-muted-foreground mb-10">Veja os sorteios abertos e monte seu jogo de 6 números.</p>
           <Link
             href="/sorteios"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-secondary text-secondary-foreground font-semibold text-lg hover:opacity-90 transition"

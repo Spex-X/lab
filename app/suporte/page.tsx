@@ -5,23 +5,23 @@ import { card } from '@/components/ui'
 const faqs = [
   {
     q: 'Como faço para participar de uma rifa?',
-    a: 'Acesse "Explorar sorteios", escolha o sorteio, selecione seus números disponíveis e finalize o pagamento via PIX. Seus números ficam salvos em "Meus bilhetes".',
+    a: 'Acesse "Explorar sorteios", escolha o sorteio, monte seus jogos de 6 números (1 a 75) e finalize o pagamento via PIX. Seus jogos ficam salvos em "Meus jogos".',
   },
   {
     q: 'Como funciona o pagamento?',
-    a: 'O pagamento é feito via PIX com QR Code ou código copia e cola. Assim que o pagamento é confirmado, seus números são marcados como comprados automaticamente.',
+    a: 'O pagamento é feito via PIX com QR Code ou código copia e cola. Assim que o pagamento é confirmado, seus jogos são validados automaticamente.',
   },
   {
     q: 'Meu pagamento não foi confirmado. E agora?',
-    a: 'A confirmação do PIX pode levar alguns minutos. Se passou mais de 30 minutos, verifique se o pagamento foi concluído no seu banco. Reservas expiram automaticamente.',
+    a: 'A confirmação do PIX pode levar alguns minutos. Se passou mais de 30 minutos, verifique se o pagamento foi concluído no seu banco. Pedidos expiram automaticamente.',
   },
   {
-    q: 'Onde vejo meus números comprados?',
-    a: 'Na página "Meus bilhetes" você vê todos os números comprados e reservados, agrupados por rifa, com o status de cada um.',
+    q: 'Onde vejo meus jogos?',
+    a: 'Na página "Meus jogos" você vê todos os jogos pagos e pendentes, agrupados por sorteio, com os 6 números de cada jogo.',
   },
   {
     q: 'Como acompanho o resultado do sorteio?',
-    a: 'Acompanhe a rifa na página dela. Quando o sorteio for realizado, o ganhador aparece na página da rifa e na seção de resultados.',
+    a: 'Acompanhe o sorteio na página dele. Quando os 6 números forem sorteados, os jogos vencedores aparecem na página do sorteio e na seção de resultados.',
   },
   {
     q: 'Como funciona o sistema parceria?',

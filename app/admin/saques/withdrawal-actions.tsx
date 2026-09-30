@@ -29,14 +29,14 @@ export function WithdrawalActions({ id }: { id: string }) {
       <button
         onClick={() => update('paid')}
         disabled={loading}
-        className="px-3 py-1 rounded text-xs font-semibold bg-green-500 text-white hover:bg-green-600 transition disabled:opacity-50"
+        className="px-3 py-1 rounded text-xs font-semibold bg-primary/100 text-white hover:bg-green-600 transition disabled:opacity-50"
       >
         Marcar pago
       </button>
       <button
         onClick={() => update('rejected')}
         disabled={loading}
-        className="px-3 py-1 rounded text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-50"
+        className="px-3 py-1 rounded text-xs font-semibold bg-destructive/100 text-white hover:bg-red-600 transition disabled:opacity-50"
       >
         Rejeitar
       </button>

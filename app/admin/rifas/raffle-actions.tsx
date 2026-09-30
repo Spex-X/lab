@@ -27,7 +27,7 @@ export function RaffleActions({ id, status }: { id: string; status: string }) {
   }
 
   const deleteRaffle = async () => {
-    if (!window.confirm('Excluir esta rifa? Todos os bilhetes e pedidos serão apagados. Esta ação não pode ser desfeita.')) {
+    if (!window.confirm('Excluir esta rifa? Todos os jogos e pedidos serão apagados. Esta ação não pode ser desfeita.')) {
       return
     }
 
@@ -51,7 +51,7 @@ export function RaffleActions({ id, status }: { id: string; status: string }) {
         href={`/rifas/${id}/gerenciar`}
         className="px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"
       >
-        Editar
+        Gerenciar
       </Link>
       {status !== 'cancelled' && (
         <button
@@ -60,7 +60,7 @@ export function RaffleActions({ id, status }: { id: string; status: string }) {
           className={`px-3 py-1 rounded text-xs font-semibold transition disabled:opacity-50 ${
             status === 'active'
               ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-              : 'bg-green-500 text-white hover:bg-green-600'
+              : 'bg-primary/100 text-white hover:bg-green-600'
           }`}
         >
           {status === 'active' ? 'Pausar' : 'Ativar'}
@@ -69,7 +69,7 @@ export function RaffleActions({ id, status }: { id: string; status: string }) {
       <button
         onClick={deleteRaffle}
         disabled={loading}
-        className="px-3 py-1 rounded text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-50"
+        className="px-3 py-1 rounded text-xs font-semibold bg-destructive/100 text-white hover:bg-red-600 transition disabled:opacity-50"
       >
         Excluir
       </button>

@@ -1,13 +1,10 @@
-import { redirect } from 'next/navigation'
 import { UserShell } from '@/components/user-shell'
 import { getSessionUser, formatCurrency, formatDate } from '@/lib/get-session-user'
 import { card, badgeClass } from '@/components/ui'
 import { WithdrawForm } from '@/app/afiliados/withdraw-form'
 
 export default async function WithdrawPage() {
-  const { supabase, session, userName, isAdmin, isAffiliate } = await getSessionUser()
-
-  if (!isAffiliate) redirect('/dashboard')
+  const { supabase, session, userName, isAdmin } = await getSessionUser()
 
   const { data: statsRaw } = await supabase.rpc('get_affiliate_stats', {
     p_user_id: session.user.id,

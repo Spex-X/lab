@@ -7,18 +7,20 @@ import Link from 'next/link'
 import { UserShell } from '@/components/user-shell'
 import { input, label, btnPrimary, btnOutline, card, alertError } from '@/components/ui'
 import { ImageUpload } from '@/components/image-upload'
+import { BASE_PRIZE, PRIZE_RATE, prizePool } from '@/lib/prize'
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+
+// Todas as rifas têm exatamente 75 números (1–75)
+const TOTAL_TICKETS = 75
+// Preço fixo de cada jogo (6 números)
+const JOGO_PRICE = 10
 
 export default function CreateRafflePage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    prize_name: '',
-    prize_value: '',
     prize_image: '',
-    total_tickets: '',
-    ticket_price: '',
     draw_date: '',
   })
   const [loading, setLoading] = useState(false)
@@ -74,32 +76,17 @@ export default function CreateRafflePage() {
       const { data: raffleData, error: raffleError } = await supabase.from('raffles').insert({
         title: formData.title,
         description: formData.description,
-        prize_name: formData.prize_name,
-        prize_value: formData.prize_value ? parseFloat(formData.prize_value) : null,
+        prize_name: formData.title,
+        prize_value: BASE_PRIZE,
         prize_image: formData.prize_image || null,
-        total_tickets: parseInt(formData.total_tickets),
-        available_tickets: parseInt(formData.total_tickets),
-        ticket_price: parseFloat(formData.ticket_price),
+        total_tickets: TOTAL_TICKETS,
+        available_tickets: TOTAL_TICKETS,
+        ticket_price: JOGO_PRICE,
         draw_date: formData.draw_date ? new Date(formData.draw_date).toISOString() : null,
         created_by: user.id,
       }).select().single()
 
       if (raffleError) throw raffleError
-
-      // Gerar bilhetes automaticamente
-      const response = await fetch('/api/generate-tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          raffleId: raffleData.id,
-          totalTickets: parseInt(formData.total_tickets),
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Erro ao gerar bilhetes')
-      }
 
       router.push('/minhas-rifas')
       router.refresh()
@@ -117,16 +104,14 @@ export default function CreateRafflePage() {
     })
   }
 
-  const total = Number(formData.total_tickets) || 0
-  const price = Number(formData.ticket_price) || 0
-  const potential = total * price
+  const price = JOGO_PRICE
 
   return (
     <UserShell>
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 w-full">
         <div className="mb-8">
           <p className="text-sm text-muted-foreground mb-2">Nova campanha</p>
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Criar rifa</h1>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Criar jogo</h1>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_340px] gap-6">
@@ -134,39 +119,32 @@ export default function CreateRafflePage() {
             {error && <div className={alertError}>{error}</div>}
 
             <section className={`${card} p-6 space-y-5`}>
-              <h2 className="font-semibold">Informações básicas</h2>
+              <h2 className="font-semibold">Informações do jogo</h2>
 
               <div>
-                <label className={label}>Título da rifa *</label>
-                <input type="text" name="title" value={formData.title} onChange={handleChange} className={input} required placeholder="Ex: Rifa do iPhone 16 Pro" />
+                <label className={label}>Nome do jogo *</label>
+                <input type="text" name="title" value={formData.title} onChange={handleChange} className={input} required placeholder="Ex: Pix de R$ 10.000" />
               </div>
 
               <div>
                 <label className={label}>Descrição</label>
-                <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className={input} placeholder="Descreva os detalhes da rifa..." />
+                <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className={input} placeholder="Descreva os detalhes do jogo..." />
               </div>
-            </section>
-
-            <section className={`${card} p-6 space-y-5`}>
-              <h2 className="font-semibold">Prêmio</h2>
 
               <div>
-                <label className={label}>Nome do prêmio *</label>
-                <input type="text" name="prize_name" value={formData.prize_name} onChange={handleChange} className={input} required placeholder="Ex: iPhone 16 Pro 256GB" />
+                <label className={label}>Prêmio</label>
+                <div className={`${input} flex items-center justify-between opacity-80`}>
+                  <span>Começa em {fmt(BASE_PRIZE)}</span>
+                  <span className="text-xs text-muted-foreground">acumula {Math.round(PRIZE_RATE * 100)}% de cada aposta</span>
+                </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={label}>Valor do prêmio (R$)</label>
-                  <input type="number" name="prize_value" value={formData.prize_value} onChange={handleChange} step="0.01" className={input} placeholder="5000.00" />
-                </div>
-                <div>
-                  <label className={label}>Imagem do prêmio</label>
-                  <ImageUpload
-                    value={formData.prize_image}
-                    onChange={(url) => setFormData({ ...formData, prize_image: url })}
-                  />
-                </div>
+              <div>
+                <label className={label}>Imagem (opcional)</label>
+                <ImageUpload
+                  value={formData.prize_image}
+                  onChange={(url) => setFormData({ ...formData, prize_image: url })}
+                />
               </div>
             </section>
 
@@ -175,24 +153,30 @@ export default function CreateRafflePage() {
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Total de números *</label>
-                  <input type="number" name="total_tickets" value={formData.total_tickets} onChange={handleChange} min="1" className={input} required placeholder="100" />
+                  <label className={label}>Números</label>
+                  <div className={`${input} flex items-center justify-between opacity-80`}>
+                    <span>Automático — 75 números</span>
+                    <span className="text-xs text-muted-foreground">jogos de 6 (1–75)</span>
+                  </div>
                 </div>
                 <div>
-                  <label className={label}>Preço por número (R$) *</label>
-                  <input type="number" name="ticket_price" value={formData.ticket_price} onChange={handleChange} step="0.01" min="0.01" className={input} required placeholder="10.00" />
+                  <label className={label}>Preço por jogo</label>
+                  <div className={`${input} flex items-center justify-between opacity-80`}>
+                    <span>{fmt(JOGO_PRICE)}</span>
+                    <span className="text-xs text-muted-foreground">fixo</span>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className={label}>Data do sorteio</label>
-                <input type="datetime-local" name="draw_date" value={formData.draw_date} onChange={handleChange} className={input} />
+                <label className={label}>Data e horário do sorteio *</label>
+                <input type="datetime-local" name="draw_date" value={formData.draw_date} onChange={handleChange} className={input} required />
               </div>
             </section>
 
             <div className="flex gap-3">
               <button type="submit" disabled={loading} className={`${btnPrimary} flex-1 py-3`}>
-                {loading ? 'Criando...' : 'Criar rifa'}
+                {loading ? 'Criando...' : 'Criar jogo'}
               </button>
               <Link href="/dashboard" className={`${btnOutline} py-3`}>Cancelar</Link>
             </div>
@@ -210,12 +194,14 @@ export default function CreateRafflePage() {
               </div>
               <div className="p-5">
                 <p className="text-xs text-muted-foreground mb-1">Pré-visualização</p>
-                <h3 className="font-semibold truncate">{formData.title || 'Título da rifa'}</h3>
-                <p className="text-sm text-muted-foreground truncate mb-4">{formData.prize_name || 'Nome do prêmio'}</p>
+                <h3 className="font-semibold truncate">{formData.title || 'Nome do jogo'}</h3>
+                <p className="text-sm text-muted-foreground truncate mb-4">
+                  Prêmio {fmt(prizePool(0))} <span className="text-xs">(acumulativo)</span>
+                </p>
                 <div className="h-1.5 rounded-full bg-muted mb-4" />
                 <div className="flex justify-between items-end">
                   <div>
-                    <p className="text-xs text-muted-foreground">Bilhete</p>
+                    <p className="text-xs text-muted-foreground">Por jogo</p>
                     <p className="text-lg font-semibold">{fmt(price)}</p>
                   </div>
                   <span className="px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-semibold">Participar</span>
@@ -224,9 +210,9 @@ export default function CreateRafflePage() {
             </div>
 
             <div className={`${card} p-5`}>
-              <p className="text-xs text-muted-foreground mb-1">Arrecadação potencial</p>
-              <p className="text-2xl font-semibold text-primary">{fmt(potential)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{total} números × {fmt(price)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Preço do jogo</p>
+              <p className="text-2xl font-semibold text-primary">{fmt(price)}</p>
+              <p className="text-xs text-muted-foreground mt-1">cada jogo = 6 números de 1 a 75</p>
             </div>
           </aside>
         </div>

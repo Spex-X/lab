@@ -101,18 +101,21 @@ export async function POST(request: Request) {
             .single()
 
           if (order) {
-            const [raffle, tickets, profile] = await Promise.all([
+            const [raffle, bets, profile] = await Promise.all([
               admin.from('raffles').select('title').eq('id', order.raffle_id).single(),
-              admin.from('tickets').select('ticket_number').eq('order_id', orderId),
+              admin.from('bets').select('numbers').eq('order_id', orderId),
               admin.from('profiles').select('email, full_name').eq('id', order.user_id).single(),
             ])
 
             if (profile.data?.email) {
+              const betLines = (bets.data || []).map((b: any) =>
+                [...b.numbers].sort((a: number, z: number) => a - z).join(', ')
+              )
               await sendPurchaseEmail({
                 email: profile.data.email,
                 name: profile.data.full_name,
                 raffleTitle: raffle.data?.title || 'Sorteio',
-                ticketNumbers: (tickets.data || []).map((t: any) => t.ticket_number),
+                ticketNumbers: betLines,
                 totalAmount: Number(order.total_amount),
               })
             }

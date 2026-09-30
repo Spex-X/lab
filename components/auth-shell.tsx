@@ -20,7 +20,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
           <div className="space-y-5">
             {[
-              ['🎫', 'Bilhetes digitais', 'Selecione seus números favoritos'],
+              ['🎫', 'Jogos de 6 números', 'Monte seu jogo entre 1 e 75'],
               ['💳', 'Pagamento PIX', 'Rápido, seguro e instantâneo'],
               ['🏆', 'Prêmios incríveis', 'Participe e ganhe!'],
             ].map(([icon, title, desc]) => (

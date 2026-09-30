@@ -7,7 +7,7 @@ const navLinks = [
   { href: '/resultados', label: 'Resultados' },
 ]
 
-export function PublicShell({ children, active }: { children: React.ReactNode; active?: string }) {
+export function PublicShell({ children, active, loggedIn = false }: { children: React.ReactNode; active?: string; loggedIn?: boolean }) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -33,18 +33,29 @@ export function PublicShell({ children, active }: { children: React.ReactNode; a
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-muted transition"
-            >
-              Entrar
-            </Link>
-            <Link
-              href="/login?cadastro=1"
-              className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
-            >
-              Cadastro
-            </Link>
+            {loggedIn ? (
+              <Link
+                href="/dashboard"
+                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+              >
+                Meu painel
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden sm:inline-flex px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-muted transition"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  href="/login?cadastro=1"
+                  className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+                >
+                  Cadastro
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

@@ -24,7 +24,7 @@ export function AppNav({ active = 'none', userName = 'Usuário', isAdmin = false
   const items: { key: NavKey; href: string; label: string }[] = [
     { key: 'dashboard', href: '/dashboard', label: 'Visão geral' },
     { key: 'rifas', href: '/minhas-rifas', label: 'Rifas' },
-    { key: 'numeros', href: '/meus-bilhetes', label: 'Números' },
+    { key: 'numeros', href: '/meus-bilhetes', label: 'Meus jogos' },
     { key: 'explorar', href: '/rifas', label: 'Explorar' },
     { key: 'afiliados', href: '/afiliados', label: 'Parceria' },
   ]
@@ -58,7 +58,7 @@ export function AppNav({ active = 'none', userName = 'Usuário', isAdmin = false
           ))}
           {isAdmin && (
             <Link
-              href="/admin"
+              href="/admin/saldo"
               className={`px-4 py-1.5 rounded-lg text-sm transition ${
                 active === 'admin' ? 'bg-card text-accent font-medium shadow-sm' : 'text-accent hover:text-foreground'
               }`}

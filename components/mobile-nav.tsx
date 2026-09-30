@@ -9,10 +9,10 @@ type Item = { href: string; label: string; icon: string; exact?: boolean }
 // Barra inferior: máximo 5 itens por perfil (padrão de app mobile)
 const userTabs: Item[] = [
   { href: '/dashboard', label: 'Início', icon: '🏠', exact: true },
-  { href: '/rifas', label: 'Sorteios', icon: '🎲' },
-  { href: '/meus-bilhetes', label: 'Bilhetes', icon: '🎫' },
+  { href: '/sorteios', label: 'Explorar', icon: '🎲' },
+  { href: '/meus-bilhetes', label: 'Jogos', icon: '🎫' },
+  { href: '/saque', label: 'Saque', icon: '💸' },
   { href: '/perfil', label: 'Perfil', icon: '👤' },
-  { href: '/suporte', label: 'Suporte', icon: '❓' },
 ]
 
 const affiliateTabs: Item[] = [
@@ -25,9 +25,9 @@ const affiliateTabs: Item[] = [
 
 const adminTabs: Item[] = [
   { href: '/dashboard', label: 'Visão', icon: '📊', exact: true },
-  { href: '/minhas-rifas', label: 'Rifas', icon: '🎰' },
+  { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
+  { href: '/admin/saldo', label: 'Saldo', icon: '💰' },
   { href: '/criar-rifa', label: 'Criar', icon: '➕' },
-  { href: '/admin', label: 'Admin', icon: '🔒' },
   { href: '/perfil', label: 'Perfil', icon: '👤' },
 ]
 
@@ -58,7 +58,7 @@ export function MobileNav({
 
       {/* Barra inferior fixa */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((t) => {
             const active = t.exact ? pathname === t.href : pathname.startsWith(t.href)
             return (

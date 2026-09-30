@@ -17,8 +17,26 @@ export default async function MyRafflesPage() {
 
   const raffles = myRaffles ?? []
   const active = raffles.filter((r) => r.status === 'active').length
-  const totalSold = raffles.reduce((s, r) => s + (r.total_tickets - r.available_tickets), 0)
-  const totalRevenue = raffles.reduce((s, r) => s + (r.total_tickets - r.available_tickets) * Number(r.ticket_price), 0)
+
+  const raffleIds = raffles.map((r) => r.id)
+  const { data: paidOrders } = raffleIds.length
+    ? await supabase
+        .from('orders')
+        .select('raffle_id, quantity, total_amount')
+        .in('raffle_id', raffleIds)
+        .eq('status', 'paid')
+    : { data: [] }
+
+  const statsByRaffle = new Map<string, { jogos: number; revenue: number }>()
+  ;(paidOrders ?? []).forEach((o: any) => {
+    const s = statsByRaffle.get(o.raffle_id) ?? { jogos: 0, revenue: 0 }
+    s.jogos += Number(o.quantity)
+    s.revenue += Number(o.total_amount)
+    statsByRaffle.set(o.raffle_id, s)
+  })
+
+  const totalSold = (paidOrders ?? []).reduce((s, o: any) => s + Number(o.quantity), 0)
+  const totalRevenue = (paidOrders ?? []).reduce((s, o: any) => s + Number(o.total_amount), 0)
 
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>
@@ -39,7 +57,7 @@ export default async function MyRafflesPage() {
             <p className="text-3xl font-semibold">{String(active).padStart(2, '0')}</p>
           </div>
           <div className={`${card} p-5`}>
-            <p className="text-sm text-muted-foreground mb-2">Números vendidos</p>
+            <p className="text-sm text-muted-foreground mb-2">Jogos vendidos</p>
             <p className="text-3xl font-semibold">{totalSold}</p>
           </div>
           <div className={`${card} p-5`}>
@@ -51,8 +69,7 @@ export default async function MyRafflesPage() {
         {raffles.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {raffles.map((raffle) => {
-              const sold = raffle.total_tickets - raffle.available_tickets
-              const pct = Math.round((sold / raffle.total_tickets) * 100)
+              const st = statsByRaffle.get(raffle.id) ?? { jogos: 0, revenue: 0 }
 
               return (
                 <div key={raffle.id} className={`${card} overflow-hidden flex flex-col`}>
@@ -71,18 +88,14 @@ export default async function MyRafflesPage() {
                     <h3 className="font-semibold truncate">{raffle.title}</h3>
                     <p className="text-sm text-muted-foreground truncate mb-4">{raffle.prize_name}</p>
 
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>{sold}/{raffle.total_tickets} vendidos</span>
-                      <span className="font-semibold text-foreground">{pct}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-4">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {st.jogos} {st.jogos === 1 ? 'jogo vendido' : 'jogos vendidos'} · 1–75
+                    </p>
 
                     <div className="grid grid-cols-2 gap-3 text-sm mb-5">
                       <div>
                         <p className="text-xs text-muted-foreground">Arrecadado</p>
-                        <p className="font-semibold text-primary">{formatCurrency(sold * Number(raffle.ticket_price), 0)}</p>
+                        <p className="font-semibold text-primary">{formatCurrency(st.revenue, 0)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Sorteio</p>

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     // Validar entrada
     const body = await request.json()
-    const { raffleId, ticketIds, guestName, guestEmail } = body
+    const { raffleId, bets, guestName, guestEmail } = body
 
     let accountCreated = false
 
@@ -104,17 +104,23 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!raffleId || !ticketIds || !Array.isArray(ticketIds) || ticketIds.length === 0) {
+    if (!raffleId || !bets || !Array.isArray(bets) || bets.length === 0) {
       return NextResponse.json(
-        { error: 'raffleId e ticketIds são obrigatórios' },
+        { error: 'raffleId e bets são obrigatórios' },
         { status: 400 }
       )
     }
 
-    // Validar que ticketIds são números
-    if (!ticketIds.every((id: any) => typeof id === 'number' && id > 0)) {
+    // Cada jogo: exatamente 6 números únicos entre 1 e 75
+    const validBet = (bet: any) =>
+      Array.isArray(bet) &&
+      bet.length === 6 &&
+      new Set(bet).size === 6 &&
+      bet.every((n: any) => Number.isInteger(n) && n >= 1 && n <= 75)
+
+    if (!bets.every(validBet)) {
       return NextResponse.json(
-        { error: 'ticketIds deve conter apenas números positivos' },
+        { error: 'Cada jogo deve ter 6 números diferentes entre 1 e 75' },
         { status: 400 }
       )
     }
@@ -136,18 +142,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Chamar função RPC para reserva atômica
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('reserve_tickets_atomic', {
+    // Criar pedido com os jogos (transação única no banco)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('create_bets_order', {
       p_raffle_id: raffleId,
       p_user_id: user.id,
-      p_ticket_numbers: ticketIds,
+      p_bets: bets,
       p_affiliate_id: affiliateId,
     })
 
     if (rpcError) {
       console.error('RPC Error:', rpcError)
       return NextResponse.json(
-        { error: rpcError.message || 'Erro ao reservar bilhetes' },
+        { error: rpcError.message || 'Erro ao registrar jogos' },
         { status: 400 }
       )
     }
@@ -173,7 +179,7 @@ export async function POST(request: Request) {
       const pixPayment = await createPixPayment({
         orderId: result.order_id,
         totalAmount: result.total_amount,
-        description: `${result.quantity}x bilhetes - ${raffle?.title || 'Sorteio'}`,
+        description: `${result.quantity}x jogos - ${raffle?.title || 'Sorteio'}`,
         payerEmail: user.email || undefined,
       })
 
@@ -203,7 +209,7 @@ export async function POST(request: Request) {
       orderId: result.order_id,
       quantity: result.quantity,
       totalAmount: result.total_amount,
-      ticketNumbers: result.ticket_numbers,
+      betCount: result.quantity,
       expiresAt: result.expires_at,
       accountCreated,
       ...pix,

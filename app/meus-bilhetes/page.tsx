@@ -3,28 +3,29 @@ import { UserShell } from '@/components/user-shell'
 import { getSessionUser, formatCurrency, formatDate } from '@/lib/get-session-user'
 import { badgeClass, statusLabel, btnPrimary, card } from '@/components/ui'
 
-export default async function MyTicketsPage() {
+export default async function MyBetsPage() {
   const { supabase, session, userName, isAdmin } = await getSessionUser()
 
-  const { data: myTickets } = await supabase
-    .from('tickets')
+  const { data: myBets } = await supabase
+    .from('bets')
     .select(`
       *,
-      raffles ( id, title, prize_name, prize_image, draw_date, status, ticket_price )
+      orders!inner ( id, status, total_amount, created_at ),
+      raffles ( id, title, prize_name, prize_image, draw_date, status, ticket_price, winning_numbers )
     `)
-    .eq('buyer_id', session.user.id)
-    .in('status', ['sold', 'reserved'])
-    .order('purchased_at', { ascending: false, nullsFirst: true })
+    .eq('user_id', session.user.id)
+    .in('orders.status', ['paid', 'pending'])
+    .order('created_at', { ascending: false })
 
-  const tickets = myTickets ?? []
-  const sold = tickets.filter((t) => t.status === 'sold')
-  const reserved = tickets.filter((t) => t.status === 'reserved')
-  const totalSpent = sold.reduce((s, t: any) => s + Number(t.raffles?.ticket_price ?? 0), 0)
+  const bets = myBets ?? []
+  const paid = bets.filter((b: any) => b.orders?.status === 'paid')
+  const pending = bets.filter((b: any) => b.orders?.status === 'pending')
+  const totalSpent = paid.reduce((s: number, b: any) => s + Number(b.raffles?.ticket_price ?? 0), 0)
 
-  const grouped = tickets.reduce<Record<string, { raffle: any; tickets: any[] }>>((acc, t: any) => {
-    const id = t.raffles?.id ?? 'unknown'
-    if (!acc[id]) acc[id] = { raffle: t.raffles, tickets: [] }
-    acc[id].tickets.push(t)
+  const grouped = bets.reduce<Record<string, { raffle: any; bets: any[] }>>((acc, b: any) => {
+    const id = b.raffles?.id ?? 'unknown'
+    if (!acc[id]) acc[id] = { raffle: b.raffles, bets: [] }
+    acc[id].bets.push(b)
     return acc
   }, {})
 
@@ -33,22 +34,22 @@ export default async function MyTicketsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Meus números</p>
+            <p className="text-sm text-muted-foreground mb-2">Meus jogos</p>
             <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-              {sold.length} {sold.length === 1 ? 'número comprado' : 'números comprados'}
+              {paid.length} {paid.length === 1 ? 'jogo confirmado' : 'jogos confirmados'}
             </h1>
           </div>
-          <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
+          <Link href="/sorteios" className={btnPrimary}>Explorar sorteios</Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className={`${card} p-5`}>
-            <p className="text-sm text-muted-foreground mb-2">Comprados</p>
-            <p className="text-3xl font-semibold text-primary">{sold.length}</p>
+            <p className="text-sm text-muted-foreground mb-2">Jogos pagos</p>
+            <p className="text-3xl font-semibold text-primary">{paid.length}</p>
           </div>
           <div className={`${card} p-5`}>
-            <p className="text-sm text-muted-foreground mb-2">Reservados</p>
-            <p className="text-3xl font-semibold text-warning">{reserved.length}</p>
+            <p className="text-sm text-muted-foreground mb-2">Aguardando PIX</p>
+            <p className="text-3xl font-semibold text-warning">{pending.length}</p>
           </div>
           <div className={`${card} p-5`}>
             <p className="text-sm text-muted-foreground mb-2">Total investido</p>
@@ -56,9 +57,9 @@ export default async function MyTicketsPage() {
           </div>
         </div>
 
-        {tickets.length > 0 ? (
+        {bets.length > 0 ? (
           <div className="space-y-4">
-            {Object.values(grouped).map(({ raffle, tickets: ts }) => (
+            {Object.values(grouped).map(({ raffle, bets: bs }) => (
               <div key={raffle?.id} className={`${card} p-5 md:p-6`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-5">
                   <div className="w-full md:w-24 h-32 md:h-24 rounded-xl bg-gradient-to-br from-primary/25 to-secondary/25 overflow-hidden shrink-0">
@@ -79,29 +80,58 @@ export default async function MyTicketsPage() {
                       {raffle?.draw_date && ` · Sorteio ${formatDate(raffle.draw_date, { day: '2-digit', month: 'short' })}`}
                     </p>
 
-                    <div className="flex flex-wrap gap-1.5">
-                      {ts
-                        .sort((a, b) => a.ticket_number - b.ticket_number)
-                        .map((t) => (
-                          <span
-                            key={t.id}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold tabular-nums ${
-                              t.status === 'sold' ? 'bg-primary/15 text-primary' : 'bg-warning/20 text-warning'
-                            }`}
-                            title={t.status === 'sold' ? 'Pago' : 'Reservado'}
-                          >
-                            {String(t.ticket_number).padStart(3, '0')}
+                    {raffle?.winning_numbers && (
+                      <div className="mb-3 flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-medium text-muted-foreground">Sorteados:</span>
+                        {raffle.winning_numbers.map((n: number) => (
+                          <span key={n} className="w-7 h-7 rounded-md bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center">
+                            {String(n).padStart(2, '0')}
                           </span>
                         ))}
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      {bs.map((b: any) => (
+                        <div key={b.id} className="flex items-center gap-2 flex-wrap">
+                          <div className="flex gap-1">
+                            {[...b.numbers].sort((a: number, z: number) => a - z).map((n: number) => {
+                              const hit = raffle?.winning_numbers?.includes(n)
+                              return (
+                                <span
+                                  key={n}
+                                  className={`px-1.5 py-0.5 rounded text-xs font-semibold tabular-nums ${
+                                    hit
+                                      ? 'bg-primary text-primary-foreground'
+                                      : b.orders?.status === 'paid'
+                                      ? 'bg-primary/15 text-primary'
+                                      : 'bg-warning/20 text-warning'
+                                  }`}
+                                >
+                                  {String(n).padStart(2, '0')}
+                                </span>
+                              )
+                            })}
+                          </div>
+                          {b.hits != null && (
+                            <span className={`text-xs font-semibold ${b.hits === 6 ? 'text-primary' : 'text-muted-foreground'}`}>
+                              {b.hits === 6 ? '🏆 6 acertos!' : `${b.hits} acertos`}
+                            </span>
+                          )}
+                          {b.orders?.status === 'pending' && (
+                            <span className="text-xs text-warning">aguardando PIX</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   <div className="flex md:flex-col items-center md:items-end justify-between gap-2 shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">{ts.length} {ts.length === 1 ? 'número' : 'números'}</p>
-                      <p className="font-semibold">{formatCurrency(ts.length * Number(raffle?.ticket_price ?? 0))}</p>
+                      <p className="text-xs text-muted-foreground">{bs.length} {bs.length === 1 ? 'jogo' : 'jogos'}</p>
+                      <p className="font-semibold">{formatCurrency(bs.length * Number(raffle?.ticket_price ?? 0))}</p>
                     </div>
-                    <Link href={`/rifas/${raffle?.id}`} className="text-sm text-primary hover:underline">Ver rifa →</Link>
+                    <Link href={`/rifas/${raffle?.id}`} className="text-sm text-primary hover:underline">Ver sorteio →</Link>
                   </div>
                 </div>
               </div>
@@ -109,10 +139,10 @@ export default async function MyTicketsPage() {
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-border p-16 text-center">
-            <div className="text-5xl mb-4">🎫</div>
-            <h3 className="text-xl font-semibold mb-2">Você ainda não tem números</h3>
-            <p className="text-muted-foreground mb-6">Explore as rifas ativas e escolha seus números da sorte.</p>
-            <Link href="/rifas" className={btnPrimary}>Explorar sorteios</Link>
+            <div className="text-5xl mb-4">�</div>
+            <h3 className="text-xl font-semibold mb-2">Você ainda não tem jogos</h3>
+            <p className="text-muted-foreground mb-6">Explore os sorteios ativos e monte seu jogo de 6 números.</p>
+            <Link href="/sorteios" className={btnPrimary}>Explorar sorteios</Link>
           </div>
         )}
       </main>
