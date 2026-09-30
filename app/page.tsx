@@ -9,34 +9,34 @@ import { prizePool } from '@/lib/prize'
 const showcase = [
   {
     id: null,
-    title: 'Pickup Wildtrak 0 km',
-    prize_name: 'Caminhonete 0 km + R$ 10.000 no Pix',
+    title: 'Bolão da Sexta',
+    prize_name: 'Prêmio acumulado em Pix',
     prize_image: '/premios/carro.jpg',
-    ticket_price: 9.9,
+    ticket_price: 10,
     draw_date: '2026-10-12',
   },
   {
     id: null,
-    title: 'Superbike Black Edition',
-    prize_name: 'Moto esportiva 1000cc',
+    title: 'Sorteio Relâmpago',
+    prize_name: 'Prêmio acumulado em Pix',
     prize_image: '/premios/moto.jpg',
-    ticket_price: 4.9,
+    ticket_price: 10,
     draw_date: '2026-09-28',
   },
   {
     id: null,
-    title: 'Kit Apple Completo',
-    prize_name: 'iPhone linha Pro + fones sem fio',
+    title: 'Jogo do Fim de Semana',
+    prize_name: 'Prêmio acumulado em Pix',
     prize_image: '/premios/iphone.jpg',
-    ticket_price: 1.9,
+    ticket_price: 10,
     draw_date: '2026-09-20',
   },
 ]
 
 const recentWinners = [
-  { numbers: '04 11 23 38 52 67', name: 'Camila R.', city: 'Fortaleza, CE', prize: 'Pix de R$ 100 mil' },
-  { numbers: '02 15 29 44 58 71', name: 'Jonas M.', city: 'Curitiba, PR', prize: 'SUV compacto 0 km' },
-  { numbers: '07 19 33 46 60 74', name: 'Rafaela S.', city: 'Belém, PA', prize: 'Kit Apple Completo' },
+  { numbers: '04 11 23 38 52 67', name: 'Camila R.', city: 'Fortaleza, CE', prize: 'Pix de R$ 412,50' },
+  { numbers: '02 15 29 44 58 71', name: 'Jonas M.', city: 'Curitiba, PR', prize: 'Pix de R$ 287,00' },
+  { numbers: '07 19 33 46 60 74', name: 'Rafaela S.', city: 'Belém, PA', prize: 'Pix de R$ 356,80' },
 ]
 
 const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
@@ -90,11 +90,11 @@ export default async function Home() {
             </span>
 
             <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
-              Seu número da sorte custa menos que um café.
+              6 números. Um prêmio que só cresce.
             </h1>
             <p className="text-lg text-muted-foreground mt-6 max-w-lg">
-              Sorteios de carros, motos, eletrônicos e dinheiro no Pix. Você escolhe os números,
-              paga em segundos e acompanha tudo em tempo real.
+              Escolha 6 números entre 1 e 75, pague por Pix e pronto. O prêmio começa em R$ 200
+              e acumula a cada aposta vendida — ganha quem cravar os 6 números sorteados ao vivo.
             </p>
 
             <div className="flex flex-wrap gap-3 mt-8">
@@ -114,9 +114,9 @@ export default async function Home() {
 
             <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-border">
               {[
-                { value: 'R$ 2,4 mi', label: 'em prêmios pagos' },
-                { value: '38 mil', label: 'participantes' },
-                { value: '112', label: 'sorteios realizados' },
+                { value: 'R$ 200', label: 'prêmio inicial garantido' },
+                { value: '+17%', label: 'de cada aposta vai pro prêmio' },
+                { value: '6/75', label: 'números pra cravar' },
               ].map((s) => (
                 <div key={s.label}>
                   <p className="text-2xl md:text-3xl font-semibold tracking-tight">{s.value}</p>
@@ -233,17 +233,17 @@ export default async function Home() {
               {
                 n: '01',
                 title: 'Pagamento por Pix',
-                desc: 'QR Code gerado na hora. Assim que o pagamento cai, seus números ficam reservados no seu nome.',
+                desc: 'QR Code gerado na hora. Assim que o pagamento cai, seus jogos ficam confirmados no seu nome.',
               },
               {
                 n: '02',
-                title: 'Resultado auditado',
-                desc: 'São sorteados 6 números entre 1 e 75 e os jogos vencedores ficam publicados na campanha.',
+                title: 'Sorteio ao vivo',
+                desc: 'São sorteados 6 números entre 1 e 75 ao vivo. Quem acertar os 6 leva o prêmio acumulado.',
               },
               {
                 n: '03',
-                title: 'Prêmio entregue',
-                desc: 'Documentação, transporte e transferência por nossa conta, em qualquer estado do Brasil.',
+                title: 'Prêmio que acumula',
+                desc: 'Começa em R$ 200 e cresce 17% de cada aposta vendida. Se ninguém cravar, acumula pro próximo.',
               },
             ].map((s) => (
               <div key={s.n}>
@@ -292,10 +292,10 @@ export default async function Home() {
       <section className="px-4 sm:px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-            Números a partir de {formatCurrency(minPrice)}
+            Jogos a partir de {formatCurrency(minPrice)}
           </h2>
           <p className="text-muted-foreground mb-10">
-            Escolha seus números, pague por Pix e concorra. Rápido, simples e auditado.
+            Monte seu jogo de 6 números, pague por Pix e concorra ao prêmio acumulado. Rápido, simples e ao vivo.
           </p>
           <Link
             href="/sorteios"
