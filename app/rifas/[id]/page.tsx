@@ -352,7 +352,7 @@ export default function RaffleDetailPage() {
                 )}
                 <div className="mt-5">
                   <p className="text-xs text-muted-foreground">
-                    Monte jogos de 6 números entre 1 e 75. Quem acertar mais números sorteados ganha.
+                    Monte jogos de 6 números entre 1 e 75. Quem acertar os 6 números sorteados ganha.
                   </p>
                 </div>
               </div>

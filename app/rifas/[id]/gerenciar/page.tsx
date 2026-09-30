@@ -186,7 +186,7 @@ export default function RaffleManagePage() {
       .from('bets')
       .select('numbers, hits, profiles(email, full_name)')
       .eq('raffle_id', params.id)
-      .gte('hits', 4)
+      .eq('hits', 6)
       .order('hits', { ascending: false })
     setWinners(data || [])
   }
@@ -476,7 +476,7 @@ export default function RaffleManagePage() {
                   </div>
                   {winners.length > 0 ? (
                     <div>
-                      <p className="text-sm text-muted-foreground mb-2">Melhores jogos (4+ acertos):</p>
+                      <p className="text-sm text-muted-foreground mb-2">Ganhadores (6 acertos):</p>
                       <div className="space-y-2">
                         {winners.map((w: any, i: number) => (
                           <div key={i} className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm">
@@ -490,7 +490,7 @@ export default function RaffleManagePage() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Nenhum jogo com 4+ acertos.</p>
+                    <p className="text-sm text-muted-foreground">Nenhum jogo acertou os 6 números.</p>
                   )}
                 </div>
               ) : (

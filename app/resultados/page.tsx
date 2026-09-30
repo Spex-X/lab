@@ -17,15 +17,14 @@ export default async function ResultadosPage() {
     .order('drawn_at', { ascending: false })
     .limit(12)
 
-  // Ganhadores: jogos com mais acertos das rifas encerradas
+  // Ganhadores: só quem acertou os 6 números
   const raffleIds = (completed ?? []).map((r) => r.id)
   const { data: topBets } = raffleIds.length
     ? await supabase
         .from('bets')
         .select('numbers, hits, raffle_id, profiles(full_name)')
         .in('raffle_id', raffleIds)
-        .gte('hits', 4)
-        .order('hits', { ascending: false })
+        .eq('hits', 6)
         .limit(30)
     : { data: [] }
 
@@ -47,7 +46,7 @@ export default async function ResultadosPage() {
             Sorteios encerrados e ganhadores
           </h1>
           <p className="text-lg text-muted-foreground mt-6">
-            Cada jogo tem 6 números entre 1 e 75. Ganha quem acertar mais números sorteados.
+            Cada jogo tem 6 números entre 1 e 75. Ganha quem acertar os 6 números sorteados.
           </p>
         </div>
       </section>

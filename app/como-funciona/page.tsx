@@ -28,7 +28,7 @@ const steps = [
 const faq = [
   {
     q: 'Como é feito o sorteio?',
-    a: 'Na data indicada na campanha são sorteados 6 números entre 1 e 75. Ganha quem acertar mais números — o resultado completo fica publicado na página do sorteio e na seção de resultados.',
+    a: 'Na data indicada na campanha são sorteados 6 números entre 1 e 75. Ganha quem acertar os 6 números — o resultado completo fica publicado na página do sorteio e na seção de resultados.',
   },
   {
     q: 'Preciso ter conta pra participar?',
