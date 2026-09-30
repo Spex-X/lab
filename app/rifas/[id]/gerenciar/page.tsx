@@ -6,7 +6,9 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ImageUpload } from '@/components/image-upload'
 import { prizePool } from '@/lib/prize'
-import { formatCurrency } from '@/lib/get-session-user'
+
+const formatCurrency = (v: number | string | null | undefined) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v ?? 0))
 
 interface Raffle {
   id: string
