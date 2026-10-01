@@ -65,6 +65,7 @@ export default function AffiliateSignupPage() {
           await supabase.rpc('ensure_affiliate_code', {
             p_user_id: data.user!.id,
             p_ref_code: refCode,
+            p_wants_affiliate: true,
           })
         } catch {
           // Não bloqueia o acesso

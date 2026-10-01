@@ -98,8 +98,7 @@ BEGIN
     AND id != NEW.id;
   END IF;
 
-  -- Afiliado automático SÓ se veio pelo cadastro de afiliado (wants_affiliate).
-  -- Link normal de divulgação → usuário normal (só fica vinculado pela comissão).
+  -- Por enquanto todo cadastro vira afiliado automaticamente.
   INSERT INTO profiles (id, email, full_name, avatar_url, affiliate_code, referred_by, is_affiliate)
   VALUES (
     NEW.id,
@@ -108,7 +107,7 @@ BEGIN
     NEW.raw_user_meta_data->>'avatar_url',
     generate_affiliate_code(),
     v_referrer_id,
-    (NEW.raw_user_meta_data->>'wants_affiliate') = 'true'
+    true
   )
   ON CONFLICT (id) DO NOTHING;
 
@@ -121,7 +120,7 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
-CREATE OR REPLACE FUNCTION ensure_affiliate_code(p_user_id uuid, p_ref_code text DEFAULT NULL)
+CREATE OR REPLACE FUNCTION ensure_affiliate_code(p_user_id uuid, p_ref_code text DEFAULT NULL, p_wants_affiliate boolean DEFAULT false)
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -134,8 +133,8 @@ BEGIN
   SELECT * INTO v_profile FROM profiles WHERE id = p_user_id;
 
   IF NOT FOUND THEN
-    INSERT INTO profiles (id, email, affiliate_code)
-    SELECT id, email, generate_affiliate_code()
+    INSERT INTO profiles (id, email, affiliate_code, is_affiliate)
+    SELECT id, email, generate_affiliate_code(), p_wants_affiliate
     FROM auth.users WHERE id = p_user_id
     RETURNING * INTO v_profile;
   END IF;
@@ -144,6 +143,13 @@ BEGIN
     UPDATE profiles SET affiliate_code = generate_affiliate_code()
     WHERE id = p_user_id
     RETURNING * INTO v_profile;
+  END IF;
+
+  -- Quem se cadastrou pela página de parceiro vira afiliado automaticamente.
+  -- Só vale pra conta recém-criada (10 min) — evita auto-promoção de conta antiga.
+  IF p_wants_affiliate AND NOT v_profile.is_affiliate
+     AND v_profile.created_at > now() - interval '10 minutes' THEN
+    UPDATE profiles SET is_affiliate = true WHERE id = p_user_id;
   END IF;
 
   IF v_profile.referred_by IS NULL AND p_ref_code IS NOT NULL AND p_ref_code != '' THEN

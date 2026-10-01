@@ -59,6 +59,7 @@ function LoginForm() {
           options: {
             data: {
               full_name: fullName,
+              wants_affiliate: true,
               ...(refCode ? { referred_by_code: refCode } : {}),
             },
           },
@@ -81,6 +82,7 @@ function LoginForm() {
             await supabase.rpc('ensure_affiliate_code', {
               p_user_id: data.user.id,
               p_ref_code: getRefCookie(),
+              p_wants_affiliate: true,
             })
           } catch {
             // Vinculação de parceiro não pode bloquear o login
