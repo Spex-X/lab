@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      // Link antigo de convite continua funcionando
+      { source: "/cadastro-afiliado", destination: "/cadastro-parceiro", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -69,7 +69,7 @@ npm run build      # build de produção
 ## Sistema parceria
 
 - Parceiros raiz são ativados a dedo pelo admin em `/admin/usuarios`
-- Convite `/cadastro-afiliado?ref=CODIGO` cria parceiro aprovado na rede do indicador
+- Convite `/cadastro-parceiro?ref=CODIGO` cria parceiro aprovado na rede do indicador
 - Links normais (`?ref=CODIGO`) vinculam o comprador sem torná-lo parceiro
 - Comissões: **20%** vendedor direto + **5%** para até 2 níveis acima (teto **30%** por venda)
 - Comissão só é creditada após confirmação do PIX

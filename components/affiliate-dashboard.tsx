@@ -63,7 +63,7 @@ export async function AffiliateDashboard({
   const headersList = await headers()
   const host = headersList.get('host') || 'localhost:3000'
   const proto = host.includes('localhost') ? 'http' : 'https'
-  const inviteLink = `${proto}://${host}/cadastro-afiliado?ref=${affiliateCode}`
+  const inviteLink = `${proto}://${host}/cadastro-parceiro?ref=${affiliateCode}`
 
   // Jogos do próprio afiliado (ele também pode jogar)
   const { data: myBets } = await supabase
