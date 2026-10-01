@@ -121,7 +121,7 @@ function LoginForm() {
           {isSignUp ? 'Criar conta' : 'Bem-vindo de volta'}
         </h1>
         <p className="text-muted-foreground">
-          {isSignUp ? 'Preencha os dados para criar sua conta' : 'Entre para participar das rifas'}
+          {isSignUp ? 'Preencha os dados para criar sua conta' : 'Entre para participar dos jogos'}
         </p>
       </div>
 

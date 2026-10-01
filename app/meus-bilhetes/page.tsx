@@ -115,7 +115,7 @@ export default async function MyBetsPage() {
                           </div>
                           {b.hits != null && (
                             <span className={`text-xs font-semibold ${b.hits === 6 ? 'text-primary' : 'text-muted-foreground'}`}>
-                              {b.hits === 6 ? '🏆 6 acertos!' : `${b.hits} acertos`}
+                              {b.hits === 6 ? '🏆 Sena!' : b.hits === 5 ? '🏆 Quina!' : b.hits === 4 ? '🏆 Quadra!' : `${b.hits} acertos`}
                             </span>
                           )}
                           {b.orders?.status === 'pending' && (

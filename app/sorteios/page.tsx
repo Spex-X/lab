@@ -84,12 +84,12 @@ export default async function SorteiosPage() {
                       <h3 className="text-lg font-semibold group-hover:text-primary transition truncate">{r.title}</h3>
                       <p className="text-sm text-muted-foreground truncate mt-0.5">{r.prize_name}</p>
 
-                      <p className="text-xs text-muted-foreground mt-4">Volante de 1 a 75 · acerte os 6 números sorteados</p>
+                      <p className="text-xs text-muted-foreground mt-4">Volante de 1 a 75 · acerte 4, 5 ou 6 números</p>
 
                       <div className="flex items-end justify-between mt-5">
                         <div>
-                          <p className="text-xs text-muted-foreground">Prêmio acumulado</p>
-                          <p className="text-xl font-semibold">{formatCurrency(prizePool(revenueByRaffle.get(r.id)))}</p>
+                          <p className="text-xs text-muted-foreground">Prêmios acumulados</p>
+                          <p className="text-xl font-semibold">{formatCurrency(prizePool(revenueByRaffle.get(r.id), r.base_prize))}</p>
                           <p className="text-[11px] text-muted-foreground">jogo {formatCurrency(r.ticket_price)}</p>
                         </div>
                         <span className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">

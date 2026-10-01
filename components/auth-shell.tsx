@@ -15,7 +15,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           </div>
           <h1 className="text-4xl font-semibold tracking-tight mb-4">Sorteios Rápidos</h1>
           <p className="text-lg text-muted-foreground mb-10">
-            Participe de rifas emocionantes e concorra a prêmios incríveis. Gestão simples e completa das suas campanhas.
+            Participe de jogos emocionantes e concorra a prêmios incríveis. Gestão simples e completa das suas campanhas.
           </p>
 
           <div className="space-y-5">

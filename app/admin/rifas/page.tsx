@@ -66,7 +66,7 @@ export default async function AdminRafflesPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground">
-            {raffles?.length || 0} rifa(s) na plataforma
+            {raffles?.length || 0} jogo(s) na plataforma
           </h2>
         </div>
 
@@ -75,7 +75,7 @@ export default async function AdminRafflesPage() {
             <table className="min-w-full divide-y divide-border">
               <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Rifa</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Jogo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Criador</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Jogos vendidos</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Preço/jogo</th>
@@ -118,7 +118,7 @@ export default async function AdminRafflesPage() {
           <div className="text-center py-12 bg-card rounded-lg border border-border">
             <div className="text-6xl mb-4">🎰</div>
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              Nenhuma rifa cadastrada
+              Nenhum jogo cadastrado
             </h3>
           </div>
         )}

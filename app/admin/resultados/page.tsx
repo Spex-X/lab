@@ -82,7 +82,7 @@ export default function AdminResultadosPage() {
       if (rpcError) throw rpcError
       if (data?.error) throw new Error(data.error)
 
-      setSuccess(`Resultado lançado! ${data.winners} jogo(s) com 6 acertos.`)
+      setSuccess(`Resultado lançado! ${data.winners_sena ?? 0} Sena · ${data.winners_quina ?? 0} Quina · ${data.winners_quadra ?? 0} Quadra.`)
       setSelected(null)
       setDrawPick([])
       loadRaffles()

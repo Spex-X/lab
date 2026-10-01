@@ -26,8 +26,11 @@ const adminItems = [
   { href: '/admin/ranking', label: 'Ranking', icon: '🏆' },
   { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
   { href: '/admin/saques', label: 'Saques', icon: '💸' },
+  { href: '/admin/rifas', label: 'Jogos', icon: '🎰' },
   { href: '/criar-rifa', label: 'Criar jogo', icon: '➕' },
 ]
+
+const ADMIN_ACTIVE = 'bg-secondary/20 text-secondary'
 
 export function initials(name: string) {
   return name
@@ -89,7 +92,7 @@ export function UserSidebar({
               Administração
             </p>
             {adminItems.map((it) => (
-              <NavLink key={it.href} {...it} activeClass="bg-secondary/20 text-secondary" />
+              <NavLink key={it.href} {...it} activeClass={ADMIN_ACTIVE} />
             ))}
           </>
         ) : (

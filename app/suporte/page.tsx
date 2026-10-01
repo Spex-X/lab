@@ -4,7 +4,7 @@ import { card } from '@/components/ui'
 
 const faqs = [
   {
-    q: 'Como faço para participar de uma rifa?',
+    q: 'Como faço para participar de um jogo?',
     a: 'Acesse "Explorar sorteios", escolha o sorteio, monte seus jogos de 6 números (1 a 75) e finalize o pagamento via PIX. Seus jogos ficam salvos em "Meus jogos".',
   },
   {
@@ -39,7 +39,7 @@ export default async function SupportPage() {
           <p className="text-sm text-muted-foreground mb-2">Central de ajuda</p>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Suporte</h1>
           <p className="text-muted-foreground mt-2">
-            Tire suas dúvidas sobre rifas, pagamentos e sua conta.
+            Tire suas dúvidas sobre jogos, pagamentos e sua conta.
           </p>
         </div>
 

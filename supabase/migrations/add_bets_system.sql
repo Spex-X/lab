@@ -17,10 +17,11 @@ create index if not exists idx_bets_raffle_id on bets(raffle_id);
 create index if not exists idx_bets_order_id on bets(order_id);
 create index if not exists idx_bets_user_id on bets(user_id);
 
-/* ETAPA 2: Resultado do sorteio na rifa */
+/* ETAPA 2: Resultado do sorteio + valor inicial do prêmio na rifa */
 alter table raffles
   add column if not exists winning_numbers smallint[],
-  add column if not exists drawn_at timestamp with time zone;
+  add column if not exists drawn_at timestamp with time zone,
+  add column if not exists base_prize numeric default 200;
 
 alter table transactions
   add column if not exists order_id uuid references orders(id) on delete cascade;
@@ -303,14 +304,18 @@ begin
   from bets b join orders o on b.order_id = o.id
   where b.raffle_id = p_raffle_id and o.status = 'paid';
 
+  /* Ganha a partir de 4 acertos (Quadra, Quina, Sena) */
   select count(*) into v_winners
-  from bets where raffle_id = p_raffle_id and hits = 6;
+  from bets where raffle_id = p_raffle_id and hits >= 4;
 
   return json_build_object(
     'success', true,
     'winning_numbers', p_winning_numbers,
     'total_bets', v_paid_bets,
-    'winners', v_winners
+    'winners', v_winners,
+    'winners_sena', (select count(*) from bets where raffle_id = p_raffle_id and hits = 6),
+    'winners_quina', (select count(*) from bets where raffle_id = p_raffle_id and hits = 5),
+    'winners_quadra', (select count(*) from bets where raffle_id = p_raffle_id and hits = 4)
   );
 
 exception
@@ -328,7 +333,18 @@ set search_path = public
 as $$
 declare
   v_stats json;
+  v_base numeric;
+  v_revenue numeric;
 begin
+  select coalesce(base_prize, 200) into v_base
+  from raffles where id = p_raffle_id;
+
+  select coalesce(sum(total_amount), 0) into v_revenue
+  from orders where raffle_id = p_raffle_id and status = 'paid';
+
+  /* O valor inicial é dividido nas 3 faixas na proporção das porcentagens
+     (0,2529 / 0,0822 / 0,0949 de um total de 0,43) e cada pote cresce
+     com a sua % da arrecadação */
   select json_build_object(
     'sold_bets', (select count(*) from bets b join orders o on b.order_id = o.id
                   where b.raffle_id = p_raffle_id and o.status = 'paid'),
@@ -336,8 +352,12 @@ begin
                      where b.raffle_id = p_raffle_id and o.status = 'pending'),
     'total_orders', (select count(*) from orders where raffle_id = p_raffle_id),
     'paid_orders', (select count(*) from orders where raffle_id = p_raffle_id and status = 'paid'),
-    'revenue', (select coalesce(sum(total_amount), 0) from orders where raffle_id = p_raffle_id and status = 'paid'),
-    'prize_pool', 200 + (select coalesce(sum(total_amount), 0) from orders where raffle_id = p_raffle_id and status = 'paid') * 0.17
+    'revenue', v_revenue,
+    'base_prize', v_base,
+    'pot_sena', v_base * 0.2529 / 0.43 + v_revenue * 0.2529,
+    'pot_quina', v_base * 0.0822 / 0.43 + v_revenue * 0.0822,
+    'pot_quadra', v_base * 0.0949 / 0.43 + v_revenue * 0.0949,
+    'prize_pool', v_base + v_revenue * 0.43
   ) into v_stats;
 
   return v_stats;
@@ -345,8 +365,9 @@ end;
 $$;
 
 /* ETAPA 9: Prêmio acumulativo gravado no banco.
-   A cada pedido confirmado (status -> 'paid'), recalcula prize_value:
-   200 de base + 17% da arrecadação total do sorteio. */
+   A cada pedido confirmado (status -> 'paid'), recalcula prize_value = pote total:
+   base_prize (valor inicial definido na criação) + 43% da arrecadação
+   (25,29% Sena + 8,22% Quina + 9,49% Quadra). */
 create or replace function update_raffle_prize_pool()
 returns trigger
 language plpgsql
@@ -356,11 +377,11 @@ as $$
 begin
   if new.status = 'paid' and (old.status is distinct from 'paid') then
     update raffles
-    set prize_value = 200 + (
+    set prize_value = coalesce(base_prize, 200) + (
       select coalesce(sum(total_amount), 0)
       from orders
       where raffle_id = new.raffle_id and status = 'paid'
-    ) * 0.17
+    ) * 0.43
     where id = new.raffle_id;
   end if;
   return new;
@@ -372,10 +393,13 @@ create trigger trg_orders_prize_pool
   after update of status on orders
   for each row execute function update_raffle_prize_pool();
 
+/* Rifas antigas sem base definida ficam com R$ 200 de valor inicial */
+update raffles set base_prize = 200 where base_prize is null;
+
 /* Recalcula o prize_value de rifas que já têm vendas pagas */
 update raffles r
-set prize_value = 200 + (
+set prize_value = coalesce(r.base_prize, 200) + (
   select coalesce(sum(total_amount), 0)
   from orders o
   where o.raffle_id = r.id and o.status = 'paid'
-) * 0.17;
+) * 0.43;

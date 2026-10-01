@@ -10,6 +10,7 @@ const items = [
   { href: '/admin/ranking', label: 'Ranking vendedores', icon: '🏆' },
   { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
   { href: '/admin/saques', label: 'Solicitações de saque', icon: '💸' },
+  { href: '/admin/rifas', label: 'Jogos', icon: '🎰' },
   { href: '/criar-rifa', label: 'Criar jogo', icon: '➕' },
   { href: '/admin/usuarios', label: 'Usuários', icon: '👥' },
 ]

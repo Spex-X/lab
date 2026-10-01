@@ -27,7 +27,7 @@ export function RaffleActions({ id, status }: { id: string; status: string }) {
   }
 
   const deleteRaffle = async () => {
-    if (!window.confirm('Excluir esta rifa? Todos os jogos e pedidos serão apagados. Esta ação não pode ser desfeita.')) {
+    if (!window.confirm('Excluir este jogo? Todas as apostas e pedidos serão apagados. Esta ação não pode ser desfeita.')) {
       return
     }
 
@@ -52,6 +52,12 @@ export function RaffleActions({ id, status }: { id: string; status: string }) {
         className="px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"
       >
         Gerenciar
+      </Link>
+      <Link
+        href={`/rifas/${id}/gerenciar?tab=settings&edit=1`}
+        className="px-3 py-1 rounded text-xs font-semibold bg-secondary text-secondary-foreground hover:opacity-80 transition"
+      >
+        Editar
       </Link>
       {status !== 'cancelled' && (
         <button

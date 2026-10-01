@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { PublicShell } from '@/components/public-shell'
-import { formatDate } from '@/lib/get-session-user'
+import { formatDate, formatCurrency } from '@/lib/get-session-user'
+import { PRIZE_TIERS, tierPot } from '@/lib/prize'
 
 export default async function ResultadosPage() {
   const supabase = await createClient()
@@ -11,22 +12,36 @@ export default async function ResultadosPage() {
 
   const { data: completed } = await supabase
     .from('raffles')
-    .select('id, title, prize_name, prize_image, draw_date, winning_numbers, drawn_at')
+    .select('id, title, prize_name, prize_image, draw_date, winning_numbers, drawn_at, base_prize')
     .eq('status', 'completed')
     .not('winning_numbers', 'is', null)
     .order('drawn_at', { ascending: false })
     .limit(12)
 
-  // Ganhadores: só quem acertou os 6 números
+  // Ganhadores: Sena (6), Quina (5) e Quadra (4)
   const raffleIds = (completed ?? []).map((r) => r.id)
   const { data: topBets } = raffleIds.length
     ? await supabase
         .from('bets')
         .select('numbers, hits, raffle_id, profiles(full_name)')
         .in('raffle_id', raffleIds)
-        .eq('hits', 6)
-        .limit(30)
+        .gte('hits', 4)
+        .order('hits', { ascending: false })
+        .limit(60)
     : { data: [] }
+
+  // Arrecadação de cada sorteio pra calcular os potes das faixas
+  const { data: paidOrders } = raffleIds.length
+    ? await supabase
+        .from('orders')
+        .select('raffle_id, total_amount')
+        .in('raffle_id', raffleIds)
+        .eq('status', 'paid')
+    : { data: [] }
+  const revenueByRaffle = new Map<string, number>()
+  ;(paidOrders ?? []).forEach((o: any) => {
+    revenueByRaffle.set(o.raffle_id, (revenueByRaffle.get(o.raffle_id) ?? 0) + Number(o.total_amount))
+  })
 
   const winnersByRaffle = new Map<string, any[]>()
   ;(topBets ?? []).forEach((b: any) => {
@@ -46,7 +61,7 @@ export default async function ResultadosPage() {
             Sorteios encerrados e ganhadores
           </h1>
           <p className="text-lg text-muted-foreground mt-6">
-            Cada jogo tem 6 números entre 1 e 75. Ganha quem acertar os 6 números sorteados.
+            Cada jogo tem 6 números entre 1 e 75. Ganha quem acertar 4, 5 ou 6 números (Quadra, Quina e Sena).
           </p>
         </div>
       </section>
@@ -87,17 +102,23 @@ export default async function ResultadosPage() {
 
                   {winners.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-border space-y-1.5">
-                      {winners.map((w: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="font-medium truncate">{w.profiles?.full_name || 'Participante'}</span>
-                          <span className="font-mono text-muted-foreground shrink-0">
-                            {[...w.numbers].sort((a: number, b: number) => a - b).map((n: number) => String(n).padStart(2, '0')).join(' ')}
-                          </span>
-                          <span className={`font-semibold shrink-0 ${w.hits === 6 ? 'text-primary' : 'text-muted-foreground'}`}>
-                            {w.hits === 6 ? '🏆 6 acertos' : `${w.hits} acertos`}
-                          </span>
-                        </div>
-                      ))}
+                      {winners.map((w: any, i: number) => {
+                        const tier = PRIZE_TIERS.find((t) => t.hits === w.hits)
+                        const tierWinners = winners.filter((x: any) => x.hits === w.hits).length
+                        const revenue = revenueByRaffle.get(r.id) ?? 0
+                        const prizeEach = tier && tierWinners > 0 ? tierPot(tier, revenue, (r as any).base_prize) / tierWinners : 0
+                        return (
+                          <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="font-medium truncate">{w.profiles?.full_name || 'Participante'}</span>
+                            <span className="font-mono text-muted-foreground shrink-0">
+                              {[...w.numbers].sort((a: number, b: number) => a - b).map((n: number) => String(n).padStart(2, '0')).join(' ')}
+                            </span>
+                            <span className={`font-semibold shrink-0 ${w.hits === 6 ? 'text-primary' : 'text-muted-foreground'}`}>
+                              {w.hits === 6 ? `🏆 Sena` : `${tier?.label} (${w.hits})`} · {formatCurrency(prizeEach)}
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

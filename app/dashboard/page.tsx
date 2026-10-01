@@ -226,7 +226,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5">
-            <p className="text-sm text-muted-foreground mb-3">Rifas ativas</p>
+            <p className="text-sm text-muted-foreground mb-3">Jogos ativos</p>
             <p className="text-3xl font-semibold tracking-tight">{String(activeRaffles.length).padStart(2, '0')}</p>
             <p className="text-xs text-muted-foreground mt-2">{myRaffles.length} no total</p>
           </div>
@@ -275,10 +275,10 @@ export default async function DashboardPage() {
           </section>
         ) : (
           <section className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="text-lg font-medium mb-2">Nenhuma rifa ativa</p>
+            <p className="text-lg font-medium mb-2">Nenhum jogo ativo</p>
             <p className="text-sm text-muted-foreground mb-6">Crie sua primeira campanha para começar a vender números.</p>
             <Link href="/criar-rifa" className="inline-block px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
-              Criar rifa
+              Criar jogo
             </Link>
           </section>
         )}
@@ -289,7 +289,7 @@ export default async function DashboardPage() {
           {/* MINHAS RIFAS */}
           <section className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-lg">Minhas rifas</h3>
+              <h3 className="font-semibold text-lg">Jogos criados</h3>
               <Link href="/minhas-rifas" className="text-sm text-muted-foreground hover:text-foreground transition">
                 Ver todas
               </Link>
@@ -337,9 +337,9 @@ export default async function DashboardPage() {
               </div>
             ) : (
               <div className="text-center py-10">
-                <p className="text-sm text-muted-foreground mb-4">Você ainda não criou nenhuma rifa</p>
+                <p className="text-sm text-muted-foreground mb-4">Você ainda não criou nenhum jogo</p>
                 <Link href="/criar-rifa" className="text-sm text-primary font-semibold hover:underline">
-                  Criar primeira rifa
+                  Criar primeiro jogo
                 </Link>
               </div>
             )}

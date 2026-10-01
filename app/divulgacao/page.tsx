@@ -36,7 +36,7 @@ export default async function PromotionLinksPage() {
 
         {/* LINKS POR RIFA */}
         <section>
-          <h2 className="font-semibold mb-4">Links por rifa ({raffles?.length ?? 0})</h2>
+          <h2 className="font-semibold mb-4">Links por jogo ({raffles?.length ?? 0})</h2>
           {raffles && raffles.length > 0 ? (
             <div className="space-y-4">
               {raffles.map((r) => {
@@ -64,7 +64,7 @@ export default async function PromotionLinksPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground text-sm">
-              Nenhuma rifa ativa no momento. O link geral continua valendo!
+              Nenhum jogo ativo no momento. O link geral continua valendo!
             </div>
           )}
         </section>

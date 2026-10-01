@@ -93,8 +93,8 @@ export default async function Home() {
               6 números. Um prêmio que só cresce.
             </h1>
             <p className="text-lg text-muted-foreground mt-6 max-w-lg">
-              Escolha 6 números entre 1 e 75, pague por Pix e pronto. O prêmio começa em R$ 200
-              e acumula a cada aposta vendida — ganha quem cravar os 6 números sorteados ao vivo.
+              Escolha 6 números entre 1 e 75, pague por Pix e pronto. Acertando 4, 5 ou 6 números
+              (Quadra, Quina ou Sena) você já ganha — os prêmios acumulam a cada aposta vendida.
             </p>
 
             <div className="flex flex-wrap gap-3 mt-8">
@@ -155,7 +155,7 @@ export default async function Home() {
               </p>
               {hasReal && (
                 <p className="text-sm font-semibold text-primary mt-3">
-                  Prêmio acumulado: {formatCurrency(prizePool(revenueByRaffle.get(featured.id)))}
+                  Prêmios acumulados: {formatCurrency(prizePool(revenueByRaffle.get(featured.id), featured.base_prize))}
                 </p>
               )}
             </div>
@@ -210,7 +210,7 @@ export default async function Home() {
                     <div className="flex items-end justify-between mt-5">
                       <div>
                         <p className="text-xs text-muted-foreground">Prêmio acumulado</p>
-                        <p className="text-xl font-semibold">{formatCurrency(prizePool(revenueByRaffle.get(r.id)))}</p>
+                        <p className="text-xl font-semibold">{formatCurrency(prizePool(revenueByRaffle.get(r.id), r.base_prize))}</p>
                         <p className="text-[11px] text-muted-foreground">jogo {formatCurrency(r.ticket_price)}</p>
                       </div>
                       <span className="text-sm font-semibold text-primary group-hover:underline">
@@ -238,12 +238,12 @@ export default async function Home() {
               {
                 n: '02',
                 title: 'Sorteio ao vivo',
-                desc: 'São sorteados 6 números entre 1 e 75 ao vivo. Quem acertar os 6 leva o prêmio acumulado.',
+                desc: 'São sorteados 6 números entre 1 e 75 ao vivo. Acertou 4, 5 ou 6? Você ganha uma parte do prêmio.',
               },
               {
                 n: '03',
                 title: 'Prêmio que acumula',
-                desc: 'Começa em R$ 200 e cresce 17% de cada aposta vendida. Se ninguém cravar, acumula pro próximo.',
+                desc: 'Sena começa em R$ 200 e cresce a cada aposta. Quina e Quadra também levam uma parte da arrecadação.',
               },
             ].map((s) => (
               <div key={s.n}>

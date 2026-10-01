@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-client'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ImageUpload } from '@/components/image-upload'
-import { prizePool } from '@/lib/prize'
+import { prizePool, PRIZE_TIERS, tierPot } from '@/lib/prize'
 
 const formatCurrency = (v: number | string | null | undefined) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v ?? 0))
@@ -16,6 +16,7 @@ interface Raffle {
   description: string
   prize_name: string
   prize_value: number | null
+  base_prize: number | null
   prize_image: string | null
   total_tickets: number
   available_tickets: number
@@ -69,6 +70,8 @@ export default function RaffleManagePage() {
     prize_name: '',
     prize_image: '',
     draw_date: '',
+    ticket_price: '',
+    base_prize: '',
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -84,6 +87,10 @@ export default function RaffleManagePage() {
 
   useEffect(() => {
     loadRaffle()
+    // ?tab=settings&edit=1 → abre direto na edição (link "Editar" da lista de jogos)
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('tab') === 'settings') setActiveTab('settings')
+    if (q.get('edit') === '1') setEditing(true)
   }, [params.id])
 
   useEffect(() => {
@@ -109,6 +116,8 @@ export default function RaffleManagePage() {
         prize_name: raffleData.prize_name,
         prize_image: raffleData.prize_image || '',
         draw_date: raffleData.draw_date ? raffleData.draw_date.slice(0, 16) : '',
+        ticket_price: String(raffleData.ticket_price ?? ''),
+        base_prize: String(raffleData.base_prize ?? ''),
       })
 
       // Carregar estatísticas
@@ -186,7 +195,7 @@ export default function RaffleManagePage() {
       .from('bets')
       .select('numbers, hits, profiles(email, full_name)')
       .eq('raffle_id', params.id)
-      .eq('hits', 6)
+      .gte('hits', 4)
       .order('hits', { ascending: false })
     setWinners(data || [])
   }
@@ -199,7 +208,7 @@ export default function RaffleManagePage() {
 
   const handleDraw = async () => {
     if (drawPick.length !== 6 || drawing) return
-    if (!window.confirm(`Sortear com os números ${[...drawPick].sort((a, b) => a - b).join(', ')}? Isso encerra a rifa e não pode ser desfeito.`)) return
+    if (!window.confirm(`Sortear com os números ${[...drawPick].sort((a, b) => a - b).join(', ')}? Isso encerra o jogo e não pode ser desfeito.`)) return
 
     setDrawing(true)
     setError('')
@@ -213,7 +222,7 @@ export default function RaffleManagePage() {
       if (data?.error) throw new Error(data.error)
 
       setDrawResult(data)
-      setSuccess(`Sorteio realizado! ${data.winners} jogo(s) com 6 acertos.`)
+      setSuccess(`Sorteio realizado! ${data.winners_sena} Sena · ${data.winners_quina} Quina · ${data.winners_quadra} Quadra.`)
       loadWinners(drawPick)
       loadRaffle()
     } catch (err: any) {
@@ -237,12 +246,17 @@ export default function RaffleManagePage() {
           prize_name: editForm.prize_name,
           prize_image: editForm.prize_image || null,
           draw_date: editForm.draw_date ? new Date(editForm.draw_date).toISOString() : null,
+          ...(editForm.ticket_price ? { ticket_price: Number(editForm.ticket_price) } : {}),
+          ...(editForm.base_prize ? {
+            base_prize: Number(editForm.base_prize),
+            prize_value: Number(editForm.base_prize) + (stats?.revenue ?? 0) * 0.43,
+          } : {}),
         })
         .eq('id', params.id)
 
       if (updateError) throw updateError
 
-      setSuccess('Rifa atualizada com sucesso!')
+      setSuccess('Jogo atualizado com sucesso!')
       loadRaffle()
     } catch (err: any) {
       setError(err.message)
@@ -284,7 +298,7 @@ export default function RaffleManagePage() {
 
       if (updateError) throw updateError
 
-      setSuccess('Rifa cancelada com sucesso!')
+      setSuccess('Jogo cancelado com sucesso!')
       loadRaffle()
     } catch (err: any) {
       setError(err.message)
@@ -304,7 +318,7 @@ export default function RaffleManagePage() {
 
       if (updateError) throw updateError
 
-      setSuccess(`Rifa ${newStatus === 'active' ? 'ativada' : 'pausada'} com sucesso!`)
+      setSuccess(`Jogo ${newStatus === 'active' ? 'ativado' : 'pausado'} com sucesso!`)
       loadRaffle()
     } catch (err: any) {
       setError(err.message)
@@ -356,7 +370,7 @@ export default function RaffleManagePage() {
   if (!raffle) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl">Rifa não encontrada</div>
+        <div className="text-2xl">Jogo não encontrado</div>
       </div>
     )
   }
@@ -476,27 +490,32 @@ export default function RaffleManagePage() {
                   </div>
                   {winners.length > 0 ? (
                     <div>
-                      <p className="text-sm text-muted-foreground mb-2">Ganhadores (6 acertos):</p>
+                      <p className="text-sm text-muted-foreground mb-2">Ganhadores (4, 5 ou 6 acertos):</p>
                       <div className="space-y-2">
-                        {winners.map((w: any, i: number) => (
-                          <div key={i} className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm">
-                            <span className="font-medium truncate">{w.profiles?.full_name || w.profiles?.email}</span>
-                            <span className="font-mono shrink-0">{[...w.numbers].sort((a: number, b: number) => a - b).map((n: number) => String(n).padStart(2, '0')).join(' ')}</span>
-                            <span className={`font-semibold shrink-0 ${w.hits === 6 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                              {w.hits} acertos
-                            </span>
-                          </div>
-                        ))}
+                        {winners.map((w: any, i: number) => {
+                          const tier = PRIZE_TIERS.find((t) => t.hits === w.hits)
+                          const tierWinners = winners.filter((x: any) => x.hits === w.hits).length
+                          const prizeEach = tier ? tierPot(tier, stats?.revenue ?? 0, raffle?.base_prize) / Math.max(tierWinners, 1) : 0
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm">
+                              <span className="font-medium truncate">{w.profiles?.full_name || w.profiles?.email}</span>
+                              <span className="font-mono shrink-0">{[...w.numbers].sort((a: number, b: number) => a - b).map((n: number) => String(n).padStart(2, '0')).join(' ')}</span>
+                              <span className={`font-semibold shrink-0 ${w.hits === 6 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                {tier?.label} · {formatCurrency(prizeEach)}
+                              </span>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Nenhum jogo acertou os 6 números.</p>
+                    <p className="text-sm text-muted-foreground">Nenhum jogo acertou 4 ou mais números.</p>
                   )}
                 </div>
               ) : (
                 <div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Escolha os 6 números sorteados (1–75). Isso encerra a rifa e marca os jogos vencedores.
+                    Escolha os 6 números sorteados (1–75). Isso encerra o jogo e marca as apostas vencedoras.
                   </p>
                   <div className="grid gap-1.5 mb-4 max-w-lg" style={{ gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' }}>
                     {Array.from({ length: 75 }, (_, i) => i + 1).map((n) => (
@@ -541,7 +560,7 @@ export default function RaffleManagePage() {
                       : 'bg-primary/100 text-white hover:bg-green-600'
                   }`}
                 >
-                  {raffle.status === 'active' ? '⏸️ Pausar Rifa' : '▶️ Ativar Rifa'}
+                  {raffle.status === 'active' ? '⏸️ Pausar jogo' : '▶️ Ativar jogo'}
                 </button>
 
                 <Link
@@ -687,7 +706,7 @@ export default function RaffleManagePage() {
         {activeTab === 'settings' && (
           <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-foreground">Configurações da Rifa</h3>
+              <h3 className="text-lg font-semibold text-foreground">Configurações do jogo</h3>
               {!editing && (
                 <button
                   onClick={() => setEditing(true)}
@@ -737,9 +756,11 @@ export default function RaffleManagePage() {
                 </div>
 
                 <div className="p-3 bg-muted rounded-md text-sm">
-                  <span className="text-muted-foreground">Prêmio acumulado:</span>{' '}
-                  <span className="font-semibold text-primary">{formatCurrency(prizePool(stats?.revenue ?? 0))}</span>
-                  <p className="text-xs text-muted-foreground mt-1">Automático — acumula 17% de cada aposta vendida.</p>
+                  <span className="text-muted-foreground">Prêmios acumulados:</span>{' '}
+                  <span className="font-semibold text-primary">{formatCurrency(prizePool(stats?.revenue ?? 0, raffle?.base_prize))}</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Automático — Sena {formatCurrency(tierPot(PRIZE_TIERS[0], stats?.revenue ?? 0, raffle?.base_prize))} · Quina {formatCurrency(tierPot(PRIZE_TIERS[1], stats?.revenue ?? 0, raffle?.base_prize))} · Quadra {formatCurrency(tierPot(PRIZE_TIERS[2], stats?.revenue ?? 0, raffle?.base_prize))}
+                  </p>
                 </div>
 
                 <div>
@@ -764,6 +785,35 @@ export default function RaffleManagePage() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Preço por jogo (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={editForm.ticket_price}
+                      onChange={(e) => setEditForm({ ...editForm, ticket_price: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Valor inicial do prêmio (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editForm.base_prize}
+                      onChange={(e) => setEditForm({ ...editForm, base_prize: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex gap-4">
                   <button
                     onClick={handleUpdateRaffle}
@@ -780,6 +830,8 @@ export default function RaffleManagePage() {
                         prize_name: raffle.prize_name,
                         prize_image: raffle.prize_image || '',
                         draw_date: raffle.draw_date ? raffle.draw_date.slice(0, 16) : '',
+                        ticket_price: String(raffle.ticket_price ?? ''),
+                        base_prize: String(raffle.base_prize ?? ''),
                       })
                     }}
                     className="flex-1 bg-muted text-foreground py-2 rounded-md hover:bg-muted/60 transition"
@@ -806,8 +858,18 @@ export default function RaffleManagePage() {
                 </div>
 
                 <div className="flex justify-between items-center p-3 bg-muted rounded">
-                  <span className="text-muted-foreground">Prêmio acumulado:</span>
-                  <span className="font-semibold text-primary">{formatCurrency(prizePool(stats?.revenue ?? 0))}</span>
+                  <span className="text-muted-foreground">Prêmios acumulados:</span>
+                  <span className="font-semibold text-primary">{formatCurrency(prizePool(stats?.revenue ?? 0, raffle?.base_prize))}</span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Valor inicial do prêmio:</span>
+                  <span className="font-semibold">{formatCurrency(raffle.base_prize)}</span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-muted rounded">
+                  <span className="text-muted-foreground">Preço por jogo:</span>
+                  <span className="font-semibold">{formatCurrency(raffle.ticket_price)}</span>
                 </div>
 
                 {raffle.draw_date && (
@@ -835,29 +897,29 @@ export default function RaffleManagePage() {
               {stats?.soldTickets > 0 ? (
                 <div>
                   <p className="text-sm text-destructive mb-4">
-                    Esta rifa já tem {stats.soldTickets} jogo(s) vendido(s) e não pode ser excluída.
+                    Este jogo já tem {stats.soldTickets} aposta(s) vendida(s) e não pode ser excluído.
                     Você pode cancelá-la — ela sairá do ar, mas os registros de venda serão mantidos.
                   </p>
                   {raffle.status !== 'cancelled' && (
                     <button
                       onClick={() => {
-                        if (window.confirm('Cancelar esta rifa? Ela sairá do ar e não poderá mais receber vendas.')) {
+                        if (window.confirm('Cancelar este jogo? Ele sairá do ar e não poderá mais receber vendas.')) {
                           handleCancelRaffle()
                         }
                       }}
                       className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold hover:bg-red-700 transition"
                     >
-                      🚫 Cancelar rifa
+                      🚫 Cancelar jogo
                     </button>
                   )}
                   {raffle.status === 'cancelled' && (
-                    <span className="text-sm text-destructive font-semibold">Esta rifa está cancelada.</span>
+                    <span className="text-sm text-destructive font-semibold">Este jogo está cancelado.</span>
                   )}
                 </div>
               ) : (
                 <div>
                   <p className="text-sm text-destructive mb-4">
-                    Excluir a rifa remove todos os jogos e pedidos associados.
+                    Excluir o jogo remove todas as apostas e pedidos associados.
                     Esta ação não pode ser desfeita.
                   </p>
 
@@ -866,7 +928,7 @@ export default function RaffleManagePage() {
                       onClick={() => setConfirmDelete(true)}
                       className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold hover:bg-red-700 transition"
                     >
-                      🗑️ Excluir rifa
+                      🗑️ Excluir jogo
                     </button>
                   ) : (
                     <div className="flex items-center gap-3">

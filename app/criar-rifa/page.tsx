@@ -7,14 +7,14 @@ import Link from 'next/link'
 import { UserShell } from '@/components/user-shell'
 import { input, label, btnPrimary, btnOutline, card, alertError } from '@/components/ui'
 import { ImageUpload } from '@/components/image-upload'
-import { BASE_PRIZE, PRIZE_RATE, prizePool } from '@/lib/prize'
+import { DEFAULT_BASE_PRIZE, PRIZE_TIERS, tierPot } from '@/lib/prize'
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-// Todas as rifas têm exatamente 75 números (1–75)
+// Todos os jogos têm exatamente 75 números (1–75)
 const TOTAL_TICKETS = 75
-// Preço fixo de cada jogo (6 números)
-const JOGO_PRICE = 10
+// Preço padrão de cada jogo (6 números) — editável no formulário
+const DEFAULT_JOGO_PRICE = 10
 
 export default function CreateRafflePage() {
   const [formData, setFormData] = useState({
@@ -22,6 +22,8 @@ export default function CreateRafflePage() {
     description: '',
     prize_image: '',
     draw_date: '',
+    base_prize: String(DEFAULT_BASE_PRIZE),
+    ticket_price: String(DEFAULT_JOGO_PRICE),
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -55,7 +57,7 @@ export default function CreateRafflePage() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        throw new Error('Você precisa estar logado para criar uma rifa')
+        throw new Error('Você precisa estar logado para criar um jogo')
       }
 
       // Verificar se o perfil existe
@@ -77,11 +79,12 @@ export default function CreateRafflePage() {
         title: formData.title,
         description: formData.description,
         prize_name: formData.title,
-        prize_value: BASE_PRIZE,
+        prize_value: basePrize,
+        base_prize: basePrize,
         prize_image: formData.prize_image || null,
         total_tickets: TOTAL_TICKETS,
         available_tickets: TOTAL_TICKETS,
-        ticket_price: JOGO_PRICE,
+        ticket_price: price,
         draw_date: formData.draw_date ? new Date(formData.draw_date).toISOString() : null,
         created_by: user.id,
       }).select().single()
@@ -104,7 +107,8 @@ export default function CreateRafflePage() {
     })
   }
 
-  const price = JOGO_PRICE
+  const price = Number(formData.ticket_price) || 0
+  const basePrize = Number(formData.base_prize) || 0
 
   return (
     <UserShell>
@@ -132,10 +136,27 @@ export default function CreateRafflePage() {
               </div>
 
               <div>
-                <label className={label}>Prêmio</label>
-                <div className={`${input} flex items-center justify-between opacity-80`}>
-                  <span>Começa em {fmt(BASE_PRIZE)}</span>
-                  <span className="text-xs text-muted-foreground">acumula {Math.round(PRIZE_RATE * 100)}% de cada aposta</span>
+                <label className={label}>Valor inicial do prêmio (R$) *</label>
+                <input
+                  type="number"
+                  name="base_prize"
+                  min="0"
+                  step="0.01"
+                  value={formData.base_prize}
+                  onChange={handleChange}
+                  className={input}
+                  required
+                />
+                <div className="mt-2 rounded-lg bg-muted px-3 py-2 text-xs space-y-1">
+                  {PRIZE_TIERS.map((t) => (
+                    <div key={t.key} className="flex justify-between">
+                      <span className="text-muted-foreground">{t.label} ({t.hits} acertos)</span>
+                      <span className="font-medium">{fmt(tierPot(t, 0, basePrize))}</span>
+                    </div>
+                  ))}
+                  <p className="text-muted-foreground pt-1 border-t border-border">
+                    Cresce a cada venda: +{PRIZE_TIERS[0].rate * 100}% Sena · +{PRIZE_TIERS[1].rate * 100}% Quina · +{PRIZE_TIERS[2].rate * 100}% Quadra
+                  </p>
                 </div>
               </div>
 
@@ -160,11 +181,17 @@ export default function CreateRafflePage() {
                   </div>
                 </div>
                 <div>
-                  <label className={label}>Preço por jogo</label>
-                  <div className={`${input} flex items-center justify-between opacity-80`}>
-                    <span>{fmt(JOGO_PRICE)}</span>
-                    <span className="text-xs text-muted-foreground">fixo</span>
-                  </div>
+                  <label className={label}>Preço por jogo (R$) *</label>
+                  <input
+                    type="number"
+                    name="ticket_price"
+                    min="0.01"
+                    step="0.01"
+                    value={formData.ticket_price}
+                    onChange={handleChange}
+                    className={input}
+                    required
+                  />
                 </div>
               </div>
 
@@ -196,7 +223,7 @@ export default function CreateRafflePage() {
                 <p className="text-xs text-muted-foreground mb-1">Pré-visualização</p>
                 <h3 className="font-semibold truncate">{formData.title || 'Nome do jogo'}</h3>
                 <p className="text-sm text-muted-foreground truncate mb-4">
-                  Prêmio {fmt(prizePool(0))} <span className="text-xs">(acumulativo)</span>
+                  Prêmios {fmt(basePrize)} <span className="text-xs">+ acúmulo por venda</span>
                 </p>
                 <div className="h-1.5 rounded-full bg-muted mb-4" />
                 <div className="flex justify-between items-end">

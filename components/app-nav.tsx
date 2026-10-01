@@ -23,7 +23,7 @@ export function initials(name: string) {
 export function AppNav({ active = 'none', userName = 'Usuário', isAdmin = false, subtitle = 'Painel operacional' }: AppNavProps) {
   const items: { key: NavKey; href: string; label: string }[] = [
     { key: 'dashboard', href: '/dashboard', label: 'Visão geral' },
-    { key: 'rifas', href: '/minhas-rifas', label: 'Rifas' },
+    { key: 'rifas', href: '/minhas-rifas', label: 'Jogos' },
     { key: 'numeros', href: '/meus-bilhetes', label: 'Meus jogos' },
     { key: 'explorar', href: '/rifas', label: 'Explorar' },
     { key: 'afiliados', href: '/afiliados', label: 'Parceria' },
@@ -73,7 +73,7 @@ export function AppNav({ active = 'none', userName = 'Usuário', isAdmin = false
             href="/criar-rifa"
             className="hidden sm:inline-flex px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
           >
-            Criar rifa
+            Criar jogo
           </Link>
           <ThemeToggle />
           <Link

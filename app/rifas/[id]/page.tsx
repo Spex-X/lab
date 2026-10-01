@@ -6,7 +6,7 @@ import { suggestEmailCorrection } from '@/lib/email-suggest'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { prizePool } from '@/lib/prize'
+import { tierPot, PRIZE_TIERS } from '@/lib/prize'
 
 interface Raffle {
   id: string
@@ -14,6 +14,7 @@ interface Raffle {
   description: string
   prize_name: string
   prize_value: number | null
+  base_prize: number | null
   prize_image: string | null
   total_tickets: number
   available_tickets: number
@@ -269,7 +270,7 @@ export default function RaffleDetailPage() {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="rounded-2xl border border-border bg-card p-8 text-center max-w-md">
-          <p className="text-lg font-semibold mb-2">Rifa não encontrada</p>
+          <p className="text-lg font-semibold mb-2">Jogo não encontrado</p>
           {error && <p className="text-sm text-destructive mb-4">{error}</p>}
           <Link href="/sorteios" className="text-sm text-primary hover:underline">← Voltar para sorteios</Link>
         </div>
@@ -323,8 +324,16 @@ export default function RaffleDetailPage() {
                     <span className="font-medium text-right">{raffle.prize_name}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-muted-foreground">Prêmio acumulado</span>
-                    <span className="font-semibold text-primary">{fmt(prizePool(arrecadado))}</span>
+                    <span className="text-muted-foreground">Sena (6 acertos)</span>
+                    <span className="font-semibold text-primary">{fmt(tierPot(PRIZE_TIERS[0], arrecadado, raffle.base_prize))}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Quina (5 acertos)</span>
+                    <span className="font-medium">{fmt(tierPot(PRIZE_TIERS[1], arrecadado, raffle.base_prize))}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Quadra (4 acertos)</span>
+                    <span className="font-medium">{fmt(tierPot(PRIZE_TIERS[2], arrecadado, raffle.base_prize))}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Jogo (6 números)</span>
@@ -352,7 +361,7 @@ export default function RaffleDetailPage() {
                 )}
                 <div className="mt-5">
                   <p className="text-xs text-muted-foreground">
-                    Monte jogos de 6 números entre 1 e 75. Quem acertar os 6 números sorteados ganha.
+                    Monte jogos de 6 números entre 1 e 75. Ganha quem acertar 4, 5 ou 6 números (Quadra, Quina ou Sena).
                   </p>
                 </div>
               </div>
@@ -414,7 +423,7 @@ export default function RaffleDetailPage() {
                 {isDrawn
                   ? 'Sorteio encerrado'
                   : isPaused
-                  ? 'Rifa pausada'
+                  ? 'Jogo pausado'
                   : creatingOrder
                   ? 'Gerando PIX...'
                   : jogos.length === 0

@@ -45,10 +45,10 @@ export default async function MyRafflesPage() {
           <div>
             <p className="text-sm text-muted-foreground mb-2">Minhas campanhas</p>
             <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-              {raffles.length} {raffles.length === 1 ? 'rifa criada' : 'rifas criadas'}
+              {raffles.length} {raffles.length === 1 ? 'jogo criado' : 'jogos criados'}
             </h1>
           </div>
-          <Link href="/criar-rifa" className={btnPrimary}>Criar rifa</Link>
+          <Link href="/criar-rifa" className={btnPrimary}>Criar jogo</Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -115,9 +115,9 @@ export default async function MyRafflesPage() {
         ) : (
           <div className="rounded-2xl border border-dashed border-border p-16 text-center">
             <div className="text-5xl mb-4">📋</div>
-            <h3 className="text-xl font-semibold mb-2">Você ainda não criou nenhuma rifa</h3>
+            <h3 className="text-xl font-semibold mb-2">Você ainda não criou nenhum jogo</h3>
             <p className="text-muted-foreground mb-6">Comece criando sua primeira campanha.</p>
-            <Link href="/criar-rifa" className={btnPrimary}>Criar rifa</Link>
+            <Link href="/criar-rifa" className={btnPrimary}>Criar jogo</Link>
           </div>
         )}
       </main>

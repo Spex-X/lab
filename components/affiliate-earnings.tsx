@@ -97,7 +97,7 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
               <thead>
                 <tr className="bg-muted/50">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rifa</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jogo</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Comprador</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Números</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Venda</th>
