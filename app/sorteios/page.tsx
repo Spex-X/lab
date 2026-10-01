@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { PublicShell } from '@/components/public-shell'
 import { UserShell } from '@/components/user-shell'
+import { PrizeVisual } from '@/components/prize-visual'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
 import { prizePool } from '@/lib/prize'
 
@@ -69,7 +70,7 @@ export default async function SorteiosPage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-5xl">🎁</div>
+                        <PrizeVisual value={prizePool(revenueByRaffle.get(r.id), r.base_prize)} />
                       )}
                       {r.draw_date && (
                         <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-background/85 backdrop-blur text-xs font-medium">

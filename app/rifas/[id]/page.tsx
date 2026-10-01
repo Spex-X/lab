@@ -6,7 +6,8 @@ import { suggestEmailCorrection } from '@/lib/email-suggest'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { tierPot, PRIZE_TIERS } from '@/lib/prize'
+import { PrizeVisual } from '@/components/prize-visual'
+import { tierPot, prizePool, PRIZE_TIERS } from '@/lib/prize'
 
 interface Raffle {
   id: string
@@ -301,11 +302,11 @@ export default function RaffleDetailPage() {
           {/* INFO */}
           <aside className="space-y-4 lg:sticky lg:top-24 self-start">
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="h-52 bg-gradient-to-br from-primary/25 to-secondary/25">
+              <div className="h-52">
                 {raffle.prize_image ? (
                   <img src={raffle.prize_image} alt={raffle.prize_name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-6xl">🎁</div>
+                  <PrizeVisual size="lg" value={prizePool(arrecadado, raffle.base_prize)} />
                 )}
               </div>
 

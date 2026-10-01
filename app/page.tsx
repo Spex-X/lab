@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { PublicShell } from '@/components/public-shell'
+import { PrizeVisual } from '@/components/prize-visual'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
 import { prizePool } from '@/lib/prize'
 
@@ -132,11 +133,18 @@ export default async function Home() {
             className="group rounded-3xl border border-border bg-card overflow-hidden hover:border-primary/40 transition shadow-xl shadow-primary/5"
           >
             <div className="aspect-[4/3] relative overflow-hidden bg-muted">
-              <img
-                src={featured.prize_image || '/premios/carro.jpg'}
-                alt={featured.prize_name}
-                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
-              />
+              {featured.prize_image ? (
+                <img
+                  src={featured.prize_image}
+                  alt={featured.prize_name}
+                  className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
+                />
+              ) : (
+                <PrizeVisual
+                  size="lg"
+                  value={prizePool(revenueByRaffle.get(featured.id), featured.base_prize)}
+                />
+              )}
               <span className="absolute top-4 left-4 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-semibold">
                 Em destaque
               </span>
@@ -193,7 +201,7 @@ export default async function Home() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl">🎁</div>
+                      <PrizeVisual value={prizePool(revenueByRaffle.get(r.id), r.base_prize)} />
                     )}
                     {r.draw_date && (
                       <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-background/85 backdrop-blur text-xs font-medium">
