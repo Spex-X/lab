@@ -13,6 +13,18 @@ type UserInfo = {
   avatarUrl: string
 }
 
+// Cache em memória entre navegações: o shell remonta a cada página,
+// mas o perfil só é buscado uma vez por sessão do navegador.
+let cachedInfo: (UserInfo & { userId: string }) | null = null
+
+export function invalidateUserShellCache() {
+  cachedInfo = null
+}
+
+export function hasCachedUser() {
+  return cachedInfo !== null
+}
+
 export function UserShell({
   children,
   userName,
@@ -24,15 +36,19 @@ export function UserShell({
   email?: string
   isAdmin?: boolean
 }) {
-  const [info, setInfo] = useState<UserInfo | null>(null)
+  const [info, setInfo] = useState<UserInfo | null>(cachedInfo)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    // getSession é local (sem ida ao servidor) — a rota já foi protegida no proxy
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user
       if (!user) {
+        cachedInfo = null
         window.location.href = '/login'
         return
       }
+      if (cachedInfo?.userId === user.id) return
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -40,14 +56,21 @@ export function UserShell({
         .eq('id', user.id)
         .single()
 
-      setInfo({
+      cachedInfo = {
+        userId: user.id,
         userName: profile?.full_name || userName || user.email?.split('@')[0] || 'Usuário',
         email: email || user.email || '',
         isAdmin: isAdmin ?? profile?.role === 'admin',
         isAffiliate: !!profile?.is_affiliate,
         avatarUrl: profile?.avatar_url || '',
-      })
+      }
+      setInfo(cachedInfo)
     })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') cachedInfo = null
+    })
+    return () => sub.subscription.unsubscribe()
   }, [userName, email, isAdmin])
 
   const name = info?.userName || userName || '...'

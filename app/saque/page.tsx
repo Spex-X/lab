@@ -6,16 +6,15 @@ import { WithdrawForm } from '@/app/afiliados/withdraw-form'
 export default async function WithdrawPage() {
   const { supabase, session, userName, isAdmin } = await getSessionUser()
 
-  const { data: statsRaw } = await supabase.rpc('get_affiliate_stats', {
-    p_user_id: session.user.id,
-  })
+  const [{ data: statsRaw }, { data: withdrawals }] = await Promise.all([
+    supabase.rpc('get_affiliate_stats', { p_user_id: session.user.id }),
+    supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false }),
+  ])
   const stats = (statsRaw ?? {}) as any
-
-  const { data: withdrawals } = await supabase
-    .from('withdrawal_requests')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false })
 
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>

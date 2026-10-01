@@ -6,12 +6,8 @@ import { WithdrawForm } from '@/app/afiliados/withdraw-form'
 export async function AffiliateEarnings({ userId }: { userId: string }) {
   const supabase = await createClient()
 
-  const { data: statsRaw } = await supabase.rpc('get_affiliate_stats', {
-    p_user_id: userId,
-  })
-  const stats = (statsRaw ?? {}) as any
-
-  const [{ data: commissions }, { data: allCommissions }, { data: sales }, { data: withdrawals }] = await Promise.all([
+  const [{ data: statsRaw }, { data: commissions }, { data: allCommissions }, { data: sales }, { data: withdrawals }] = await Promise.all([
+    supabase.rpc('get_affiliate_stats', { p_user_id: userId }),
     supabase
       .from('affiliate_commissions')
       .select('*, order:orders(total_amount, created_at, raffle:raffles(title))')
@@ -35,6 +31,7 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
       .order('created_at', { ascending: false })
       .limit(10),
   ])
+  const stats = (statsRaw ?? {}) as any
 
   const commissionByLevel = (lv: number) =>
     (allCommissions ?? [])

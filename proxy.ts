@@ -27,10 +27,9 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Valida o usuário contra o Auth server (também renova o cookie se expirado)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Valida o JWT (local com chaves assimétricas) e renova o cookie se expirado
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const user = claimsData?.claims?.sub ? claimsData.claims : null
 
   // Proteger rotas que requerem autenticação
   const protectedPaths = ['/dashboard', '/minhas-rifas', '/criar-rifa', '/meus-bilhetes', '/afiliados', '/suporte', '/perfil', '/divulgacao', '/saque', '/comissoes']
@@ -41,27 +40,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Proteger rotas admin
-  const adminPaths = ['/admin']
-  const isAdminPath = adminPaths.some(path => request.nextUrl.pathname.startsWith(path))
-
-  if (isAdminPath) {
-    if (!user) {
-      const redirectUrl = new URL('/login', request.url)
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    // Verificar se é admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile || profile.role !== 'admin') {
-      const redirectUrl = new URL('/dashboard', request.url)
-      return NextResponse.redirect(redirectUrl)
-    }
+  // Rotas admin: aqui só exige login — o papel de admin é verificado no app/admin/layout.tsx
+  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return supabaseResponse
@@ -69,6 +50,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Webhooks não usam sessão — ficam fora do proxy
+    '/((?!_next/static|_next/image|api/webhooks|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

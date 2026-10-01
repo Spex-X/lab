@@ -1,7 +1,9 @@
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 
-export async function getSessionUser() {
+// cache(): várias chamadas no mesmo request reaproveitam o resultado
+export const getSessionUser = cache(async () => {
   const supabase = await createClient()
   const {
     data: { user },
@@ -28,7 +30,7 @@ export async function getSessionUser() {
     isAffiliate: !!profile?.is_affiliate,
     profile,
   }
-}
+})
 
 export function formatCurrency(value: number | string | null | undefined, digits = 2) {
   return new Intl.NumberFormat('pt-BR', {

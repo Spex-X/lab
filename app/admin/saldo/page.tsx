@@ -85,7 +85,7 @@ export default async function AdminSaldoPage() {
           <p className="text-xs text-muted-foreground mt-1">bases + {Math.round(TOTAL_PRIZE_RATE * 100)}% das vendas</p>
         </div>
         <div className="bg-card p-6 rounded-lg border border-border">
-          <p className="text-muted-foreground text-sm">Comissões afiliados</p>
+          <p className="text-muted-foreground text-sm">Comissões parceiros</p>
           <p className="text-3xl font-bold text-secondary">{formatCurrency(totalComissoes)}</p>
           <p className="text-xs text-muted-foreground mt-1">pagas nas vendas indicadas</p>
         </div>
@@ -109,7 +109,7 @@ export default async function AdminSaldoPage() {
                 <th className="px-5 py-3 text-right">Jogos</th>
                 <th className="px-5 py-3 text-right">Arrecadado</th>
                 <th className="px-5 py-3 text-right">Prêmios</th>
-                <th className="px-5 py-3 text-right">Afiliados</th>
+                <th className="px-5 py-3 text-right">Parceiros</th>
                 <th className="px-5 py-3 text-right">Líquido</th>
                 <th className="px-5 py-3"></th>
               </tr>

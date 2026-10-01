@@ -12,35 +12,28 @@ export async function AffiliateDashboard({
 }) {
   const supabase = await createClient()
 
-  const [{ data: allProfiles }, { data: statsRaw }] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id, full_name, referred_by, is_affiliate, created_at')
-      .not('referred_by', 'is', null)
-      .order('created_at', { ascending: false }),
-    supabase.rpc('get_affiliate_stats', { p_user_id: userId }),
-  ])
-  const stats = (statsRaw ?? {}) as any
+  // Busca só a rede deste parceiro (nível 1 e 2) — consultas indexadas por referred_by
+  const fields = 'id, full_name, referred_by, is_affiliate, created_at'
+  const { data: level1All } = await supabase
+    .from('profiles')
+    .select(fields)
+    .eq('referred_by', userId)
+    .order('created_at', { ascending: false })
+  const level1Ids = (level1All ?? []).map((p) => p.id).filter((id) => id !== userId)
+  const { data: level2All } = level1Ids.length
+    ? await supabase
+        .from('profiles')
+        .select(fields)
+        .in('referred_by', level1Ids)
+        .neq('id', userId)
+        .order('created_at', { ascending: false })
+    : { data: [] as any[] }
 
-  // Monta a árvore: nível 1 = indicados diretos, nível 2 = indicados dos indicados, nível 3+ = fora do alcance
-  const children = new Map<string, any[]>()
-  for (const p of allProfiles ?? []) {
-    const list = children.get(p.referred_by) ?? []
-    list.push(p)
-    children.set(p.referred_by, list)
-  }
-  const levels: any[][] = []
-  const visited = new Set<string>([userId])
-  let frontier = children.get(userId) ?? []
-  while (frontier.length > 0 && levels.length < 10) {
-    const level = frontier.filter((p: any) => !visited.has(p.id))
-    if (level.length === 0) break
-    level.forEach((p: any) => visited.add(p.id))
-    // Só parceiros aprovados aparecem na rede — usuário normal não entra na lista
-    const affiliates = level.filter((p: any) => p.is_affiliate)
-    if (affiliates.length > 0) levels.push(affiliates)
-    frontier = level.flatMap((p: any) => children.get(p.id) ?? [])
-  }
+  // Só parceiros aprovados aparecem na rede — usuário normal não entra na lista
+  const levels: any[][] = [
+    (level1All ?? []).filter((p: any) => p.is_affiliate && p.id !== userId),
+    (level2All ?? []).filter((p: any) => p.is_affiliate),
+  ]
   // Só exibe quem está dentro do alcance da comissão (níveis 1 e 2)
   const levelGroups = [
     {

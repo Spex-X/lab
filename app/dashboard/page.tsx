@@ -290,7 +290,7 @@ export default async function DashboardPage() {
             <div className="rounded-xl bg-muted p-4">
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-secondary shrink-0" />
-                <p className="text-xs text-muted-foreground">Comissões de afiliados</p>
+                <p className="text-xs text-muted-foreground">Comissões de parceiros</p>
               </div>
               <p className="text-xl font-semibold tabular-nums">{formatCurrency(commissionTotal)}</p>
               <p className="text-[11px] text-muted-foreground mt-1">até 30% por venda indicada</p>

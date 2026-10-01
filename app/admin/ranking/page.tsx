@@ -53,7 +53,7 @@ export default async function AdminRankingPage() {
     <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-foreground">Ranking de vendedores</h2>
-        <p className="text-muted-foreground mt-1">Afiliados que mais geraram vendas pagas</p>
+        <p className="text-muted-foreground mt-1">Parceiros que mais geraram vendas pagas</p>
       </div>
 
       {ranking.length > 0 ? (
@@ -81,7 +81,7 @@ export default async function AdminRankingPage() {
         </div>
       ) : (
         <div className="bg-card rounded-lg border border-border p-16 text-center text-muted-foreground">
-          Nenhuma venda via afiliado ainda.
+          Nenhuma venda via parceiro ainda.
         </div>
       )}
     </main>

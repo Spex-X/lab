@@ -44,34 +44,30 @@ const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
 
 export default async function Home() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
-  if (user) redirect('/dashboard')
+  // Tudo em paralelo: login (validado localmente), jogos ativos e arrecadação deles
+  const [{ data: claimsData }, { data: activeRaffles }, { data: paidOrders }] = await Promise.all([
+    supabase.auth.getClaims(),
+    supabase
+      .from('raffles')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(3),
+    supabase
+      .from('orders')
+      .select('raffle_id, total_amount, raffles!inner(status)')
+      .eq('raffles.status', 'active')
+      .eq('status', 'paid'),
+  ])
 
-  const { data: activeRaffles } = await supabase
-    .from('raffles')
-    .select('*')
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(3)
+  if (claimsData?.claims?.sub) redirect('/dashboard')
 
   const hasReal = (activeRaffles?.length ?? 0) > 0
   const raffles: any[] = hasReal ? activeRaffles! : showcase
   const featured = raffles[0]
   const featuredHref = featured.id ? `/rifas/${featured.id}` : '/sorteios'
   const minPrice = Math.min(...raffles.map((r) => Number(r.ticket_price)))
-
-  // Arrecadação por rifa pra calcular o prêmio acumulado
-  const raffleIds = hasReal ? raffles.map((r) => r.id) : []
-  const { data: paidOrders } = raffleIds.length
-    ? await supabase
-        .from('orders')
-        .select('raffle_id, total_amount')
-        .in('raffle_id', raffleIds)
-        .eq('status', 'paid')
-    : { data: [] }
   const revenueByRaffle = new Map<string, number>()
   ;(paidOrders ?? []).forEach((o: any) => {
     revenueByRaffle.set(o.raffle_id, (revenueByRaffle.get(o.raffle_id) ?? 0) + Number(o.total_amount || 0))

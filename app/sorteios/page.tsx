@@ -10,27 +10,24 @@ const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
 
 export default async function SorteiosPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
-  const { data: raffles } = await supabase
-    .from('raffles')
-    .select('*')
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
+  // Tudo em paralelo: login (validado localmente), jogos ativos e arrecadação deles
+  const [{ data: claimsData }, { data: raffles }, { data: paidOrders }] = await Promise.all([
+    supabase.auth.getClaims(),
+    supabase
+      .from('raffles')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('orders')
+      .select('raffle_id, total_amount, raffles!inner(status)')
+      .eq('raffles.status', 'active')
+      .eq('status', 'paid'),
+  ])
+  const user = claimsData?.claims?.sub ? claimsData.claims : null
 
   const list = raffles ?? []
-
-  // Arrecadação por rifa (pedidos pagos) pra calcular o prêmio acumulado
-  const ids = list.map((r) => r.id)
-  const { data: paidOrders } = ids.length
-    ? await supabase
-        .from('orders')
-        .select('raffle_id, total_amount')
-        .in('raffle_id', ids)
-        .eq('status', 'paid')
-    : { data: [] }
 
   const revenueByRaffle = new Map<string, number>()
   ;(paidOrders ?? []).forEach((o: any) => {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-client'
 import { ImageUpload } from '@/components/image-upload'
 import { initials } from '@/components/user-sidebar'
+import { invalidateUserShellCache } from '@/components/user-shell'
 import { card, input, label, btnPrimary, alertError } from '@/components/ui'
 
 export function ProfileForm({
@@ -53,6 +54,7 @@ export function ProfileForm({
       setError(updateError.message)
     } else {
       setSaved(true)
+      invalidateUserShellCache()
       router.refresh()
       setTimeout(() => setSaved(false), 3000)
     }
