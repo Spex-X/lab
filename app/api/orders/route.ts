@@ -51,6 +51,7 @@ export async function POST(request: Request) {
         options: {
           data: {
             full_name: guestName.trim(),
+            wants_affiliate: true,
             ...(refCodePre ? { referred_by_code: refCodePre } : {}),
           },
         },
@@ -95,6 +96,17 @@ export async function POST(request: Request) {
 
       const { data: userData } = await supabase.auth.getUser()
       user = userData.user
+
+      if (user) {
+        // Todo cadastro vira afiliado (com vínculo do indicador, se houver)
+        supabase
+          .rpc('ensure_affiliate_code', {
+            p_user_id: user.id,
+            p_ref_code: refCodePre ?? null,
+            p_wants_affiliate: true,
+          })
+          .then(() => {}, () => {})
+      }
 
       if (!user) {
         return NextResponse.json(
