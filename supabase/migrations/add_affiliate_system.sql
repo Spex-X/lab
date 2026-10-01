@@ -130,6 +130,12 @@ DECLARE
   v_profile record;
   v_referrer_id uuid;
 BEGIN
+  -- Só o próprio usuário logado (ou um admin) pode rodar pra esse id.
+  -- Sem isso, alguém podia vincular o código dele como padrinho de outra conta.
+  IF auth.uid() IS DISTINCT FROM p_user_id AND NOT is_admin() THEN
+    RETURN json_build_object('error', 'Não autorizado');
+  END IF;
+
   SELECT * INTO v_profile FROM profiles WHERE id = p_user_id;
 
   IF NOT FOUND THEN
