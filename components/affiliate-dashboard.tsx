@@ -1,6 +1,8 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { card } from '@/components/ui'
 import { CopyText } from '@/components/copy-text'
+import { formatCurrency } from '@/lib/get-session-user'
 import { headers } from 'next/headers'
 
 export async function AffiliateDashboard({
@@ -62,6 +64,32 @@ export async function AffiliateDashboard({
   const host = headersList.get('host') || 'localhost:3000'
   const proto = host.includes('localhost') ? 'http' : 'https'
   const inviteLink = `${proto}://${host}/cadastro-afiliado?ref=${affiliateCode}`
+
+  // Jogos do próprio afiliado (ele também pode jogar)
+  const { data: myBets } = await supabase
+    .from('bets')
+    .select('id, numbers, hits, raffles(id, title, winning_numbers)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  // potes/ganhadores por sorteio pra mostrar o valor do prêmio
+  const betRaffleIds = [...new Set((myBets ?? []).map((b: any) => b.raffles?.id).filter(Boolean))]
+  const statsEntries = await Promise.all(
+    betRaffleIds.map(async (id) => {
+      const { data } = await supabase.rpc('get_raffle_stats', { p_raffle_id: id as string })
+      return [id, data] as const
+    })
+  )
+  const statsByRaffle = new Map<string, any>(statsEntries)
+  const tierKey = (hits: number) => (hits === 6 ? 'sena' : hits === 5 ? 'quina' : 'quadra')
+  const prizeFor = (raffleId: string, hits: number) => {
+    const s = statsByRaffle.get(raffleId)
+    if (!s) return 0
+    const pot = Number(s[`pot_${tierKey(hits)}`] ?? 0)
+    const w = Number(s[`winners_${tierKey(hits)}`] ?? 0)
+    return w > 0 ? pot / w : 0
+  }
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
@@ -134,6 +162,58 @@ export async function AffiliateDashboard({
         ) : (
           <p className="p-6 text-center text-muted-foreground text-sm">
             Ninguém se cadastrou pelo seu link ainda. Use o convite acima para começar!
+          </p>
+        )}
+      </section>
+
+      {/* MEUS JOGOS */}
+      <section className={`${card} p-6`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">Meus jogos</h3>
+          <Link href="/meus-bilhetes" className="text-sm text-muted-foreground hover:text-foreground transition">
+            Ver todos →
+          </Link>
+        </div>
+        {myBets && myBets.length > 0 ? (
+          <div className="space-y-2">
+            {myBets.map((b: any) => {
+              const drawn = b.raffles?.winning_numbers as number[] | null
+              const won = b.hits != null && b.hits >= 4
+              return (
+                <div key={b.id} className="flex items-center gap-3 flex-wrap text-sm">
+                  <span className="text-xs text-muted-foreground truncate max-w-[140px]">{b.raffles?.title}</span>
+                  <div className="flex gap-1">
+                    {[...b.numbers].sort((a: number, z: number) => a - z).map((n: number) => {
+                      const hit = drawn?.includes(n)
+                      return (
+                        <span
+                          key={n}
+                          className={`px-1.5 py-0.5 rounded text-xs font-semibold tabular-nums ${
+                            hit ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {String(n).padStart(2, '0')}
+                        </span>
+                      )
+                    })}
+                  </div>
+                  {b.hits != null && (
+                    <span className={`text-xs font-semibold ${won ? 'text-primary' : 'text-muted-foreground'}`}>
+                      {won
+                        ? `🏆 ${b.hits === 6 ? 'Sena' : b.hits === 5 ? 'Quina' : 'Quadra'} · ${formatCurrency(prizeFor(b.raffles?.id, b.hits))}`
+                        : `${b.hits} acertos — não ganhou`}
+                    </span>
+                  )}
+                  {b.hits == null && !drawn && (
+                    <span className="text-xs text-muted-foreground">aguardando sorteio</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Você ainda não jogou. <Link href="/sorteios" className="text-primary font-semibold hover:underline">Explorar sorteios →</Link>
           </p>
         )}
       </section>

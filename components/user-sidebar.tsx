@@ -14,6 +14,8 @@ const userItems = [
 
 const affiliateItems = [
   { href: '/comissoes', label: 'Saldo', icon: '💳' },
+  { href: '/sorteios', label: 'Explorar sorteios', icon: '🎲' },
+  { href: '/meus-bilhetes', label: 'Meus jogos', icon: '🎫' },
   { href: '/dashboard', label: 'Convidar parceiros', icon: '🤝', exact: true },
   { href: '/divulgacao', label: 'Links de divulgação', icon: '🔗' },
   { href: '/saque', label: 'Saque', icon: '💸' },

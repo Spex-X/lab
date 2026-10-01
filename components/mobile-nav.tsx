@@ -17,6 +17,8 @@ const userTabs: Item[] = [
 
 const affiliateTabs: Item[] = [
   { href: '/comissoes', label: 'Saldo', icon: '💳' },
+  { href: '/sorteios', label: 'Explorar', icon: '🎲' },
+  { href: '/meus-bilhetes', label: 'Jogos', icon: '🎫' },
   { href: '/dashboard', label: 'Parceiros', icon: '🤝', exact: true },
   { href: '/divulgacao', label: 'Links', icon: '🔗' },
   { href: '/saque', label: 'Saque', icon: '💸' },
