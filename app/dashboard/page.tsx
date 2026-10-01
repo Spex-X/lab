@@ -4,6 +4,7 @@ import { UserShell } from '@/components/user-shell'
 import { AffiliateDashboard } from '@/components/affiliate-dashboard'
 import { RaffleQuickActions } from '@/components/raffle-quick-actions'
 import { getSessionUser, formatCurrency as fmt, formatDate as fmtDate } from '@/lib/get-session-user'
+import { PRIZE_TIERS, TOTAL_PRIZE_RATE, DEFAULT_BASE_PRIZE, tierPot } from '@/lib/prize'
 import { card, btnPrimary } from '@/components/ui'
 
 const formatCurrency = (v: number | string | null | undefined) => fmt(v, 0)
@@ -175,12 +176,26 @@ export default async function DashboardPage() {
       .limit(4),
   ])
 
+  // Comissões de afiliados pagas nos jogos do admin
+  const { data: commissions } = await supabase
+    .from('affiliate_commissions')
+    .select('amount, orders!inner(raffle_id)')
+
   const myRaffles = myRaffleRows ?? []
   const activeRaffles = myRaffles.filter((r) => r.status === 'active')
 
   const totalRevenue = (paidOrders ?? []).reduce((s, o) => s + Number(o.total_amount ?? 0), 0)
   const todayRevenue = (todayOrders ?? []).reduce((s, o) => s + Number(o.total_amount ?? 0), 0)
   const todayTickets = (todayOrders ?? []).reduce((s, o) => s + Number(o.quantity ?? 0), 0)
+
+  // Divisão da arrecadação: prêmios (base + 43%) / comissões / casa
+  const myRaffleIds = new Set(myRaffles.map((r) => r.id))
+  const baseTotal = myRaffles.reduce((s, r) => s + Number(r.base_prize ?? DEFAULT_BASE_PRIZE), 0)
+  const prizeTotal = baseTotal + totalRevenue * TOTAL_PRIZE_RATE
+  const commissionTotal = (commissions ?? [])
+    .filter((c: any) => myRaffleIds.has(c.orders?.raffle_id))
+    .reduce((s, c: any) => s + Number(c.amount ?? 0), 0)
+  const houseNet = totalRevenue - prizeTotal - commissionTotal
 
   const featured = activeRaffles[0]
 
@@ -239,6 +254,66 @@ export default async function DashboardPage() {
                 : 'R$ 0'}
             </p>
             <p className="text-xs text-muted-foreground mt-2">por pedido pago</p>
+          </div>
+        </section>
+
+        {/* DIVISÃO DA ARRECADAÇÃO */}
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-lg">Divisão da arrecadação</h3>
+            <span className="text-xs text-muted-foreground">sobre {formatCurrency(totalRevenue)} vendidos</span>
+          </div>
+
+          {/* Barra empilhada */}
+          <div className="h-4 rounded-full overflow-hidden flex bg-muted mb-6">
+            {totalRevenue + baseTotal > 0 ? (
+              <>
+                <div className="bg-primary" style={{ width: `${Math.min((prizeTotal / (totalRevenue + baseTotal)) * 100, 100)}%` }} title="Prêmios" />
+                <div className="bg-secondary" style={{ width: `${Math.min((commissionTotal / (totalRevenue + baseTotal)) * 100, 100)}%` }} title="Afiliados" />
+                <div className="bg-warning" style={{ width: `${Math.max(Math.min((houseNet / (totalRevenue + baseTotal)) * 100, 100), 0)}%` }} title="Casa" />
+              </>
+            ) : null}
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="rounded-xl bg-muted p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />
+                <p className="text-xs text-muted-foreground">Prêmios (Sena · Quina · Quadra)</p>
+              </div>
+              <p className="text-xl font-semibold tabular-nums">{formatCurrency(prizeTotal)}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {formatCurrency(baseTotal)} de base + {Math.round(TOTAL_PRIZE_RATE * 100)}% das vendas
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-muted p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-secondary shrink-0" />
+                <p className="text-xs text-muted-foreground">Comissões de afiliados</p>
+              </div>
+              <p className="text-xl font-semibold tabular-nums">{formatCurrency(commissionTotal)}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">até 30% por venda indicada</p>
+            </div>
+
+            <div className="rounded-xl bg-muted p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-warning shrink-0" />
+                <p className="text-xs text-muted-foreground">Fica pra casa</p>
+              </div>
+              <p className="text-xl font-semibold tabular-nums">{formatCurrency(houseNet)}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">arrecadado − prêmios − comissões</p>
+            </div>
+          </div>
+
+          {/* Detalhe por faixa de prêmio */}
+          <div className="grid sm:grid-cols-3 gap-3 mt-3">
+            {PRIZE_TIERS.map((t) => (
+              <div key={t.key} className="rounded-xl border border-border px-4 py-3 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t.label} ({t.hits} acertos)</span>
+                <span className="font-semibold tabular-nums">{formatCurrency(tierPot(t, totalRevenue, baseTotal))}</span>
+              </div>
+            ))}
           </div>
         </section>
 

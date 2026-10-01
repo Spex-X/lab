@@ -357,7 +357,13 @@ begin
     'pot_sena', v_base * 0.2529 / 0.43 + v_revenue * 0.2529,
     'pot_quina', v_base * 0.0822 / 0.43 + v_revenue * 0.0822,
     'pot_quadra', v_base * 0.0949 / 0.43 + v_revenue * 0.0949,
-    'prize_pool', v_base + v_revenue * 0.43
+    'prize_pool', v_base + v_revenue * 0.43,
+    'winners_sena', (select count(*) from bets b join orders o on b.order_id = o.id
+                     where b.raffle_id = p_raffle_id and o.status = 'paid' and b.hits = 6),
+    'winners_quina', (select count(*) from bets b join orders o on b.order_id = o.id
+                      where b.raffle_id = p_raffle_id and o.status = 'paid' and b.hits = 5),
+    'winners_quadra', (select count(*) from bets b join orders o on b.order_id = o.id
+                       where b.raffle_id = p_raffle_id and o.status = 'paid' and b.hits = 4)
   ) into v_stats;
 
   return v_stats;

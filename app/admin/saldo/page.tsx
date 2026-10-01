@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
+import { TOTAL_PRIZE_RATE, DEFAULT_BASE_PRIZE, prizePool } from '@/lib/prize'
 
 export default async function AdminSaldoPage() {
   const supabase = await createClient()
@@ -20,15 +21,18 @@ export default async function AdminSaldoPage() {
   if (!profile || profile.role !== 'admin') redirect('/dashboard')
 
   // Arrecadação por sorteio: pedidos pagos agrupados por rifa
-  const [{ data: raffles }, { data: orders }] = await Promise.all([
+  const [{ data: raffles }, { data: orders }, { data: commissions }] = await Promise.all([
     supabase
       .from('raffles')
-      .select('id, title, prize_name, status, draw_date, ticket_price')
+      .select('id, title, prize_name, status, draw_date, ticket_price, base_prize')
       .order('created_at', { ascending: false }),
     supabase
       .from('orders')
       .select('raffle_id, total_amount, quantity')
       .eq('status', 'paid'),
+    supabase
+      .from('affiliate_commissions')
+      .select('amount, orders!inner(raffle_id)'),
   ])
 
   const stats = new Map<string, { revenue: number; jogos: number; pedidos: number }>()
@@ -40,13 +44,26 @@ export default async function AdminSaldoPage() {
     stats.set(o.raffle_id, s)
   })
 
+  // Comissões por sorteio
+  const commissionsByRaffle = new Map<string, number>()
+  ;(commissions ?? []).forEach((c: any) => {
+    const rid = c.orders?.raffle_id
+    if (rid) commissionsByRaffle.set(rid, (commissionsByRaffle.get(rid) ?? 0) + Number(c.amount || 0))
+  })
+
   const totalGeral = (orders ?? []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0)
   const totalJogos = (orders ?? []).reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0)
+  const totalComissoes = (commissions ?? []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0)
 
-  const rows = (raffles ?? []).map((r: any) => ({
-    ...r,
-    ...(stats.get(r.id) ?? { revenue: 0, jogos: 0, pedidos: 0 }),
-  }))
+  const rows = (raffles ?? []).map((r: any) => {
+    const s = stats.get(r.id) ?? { revenue: 0, jogos: 0, pedidos: 0 }
+    const premios = prizePool(s.revenue, r.base_prize)
+    const comissao = commissionsByRaffle.get(r.id) ?? 0
+    return { ...r, ...s, premios, comissao, liquido: s.revenue - premios - comissao }
+  })
+
+  const totalPremios = rows.reduce((s: number, r: any) => s + r.premios, 0)
+  const totalLiquido = totalGeral - totalPremios - totalComissoes
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -56,18 +73,26 @@ export default async function AdminSaldoPage() {
       </div>
 
       {/* Totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div className="bg-card p-6 rounded-lg border border-border">
           <p className="text-muted-foreground text-sm">Arrecadação total</p>
           <p className="text-3xl font-bold text-green-600">{formatCurrency(totalGeral)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{totalJogos} jogos · {rows.length} sorteios</p>
         </div>
         <div className="bg-card p-6 rounded-lg border border-border">
-          <p className="text-muted-foreground text-sm">Jogos vendidos</p>
-          <p className="text-3xl font-bold text-foreground">{totalJogos}</p>
+          <p className="text-muted-foreground text-sm">Vai pro prêmio</p>
+          <p className="text-3xl font-bold text-primary">{formatCurrency(totalPremios)}</p>
+          <p className="text-xs text-muted-foreground mt-1">bases + {Math.round(TOTAL_PRIZE_RATE * 100)}% das vendas</p>
         </div>
         <div className="bg-card p-6 rounded-lg border border-border">
-          <p className="text-muted-foreground text-sm">Sorteios</p>
-          <p className="text-3xl font-bold text-foreground">{rows.length}</p>
+          <p className="text-muted-foreground text-sm">Comissões afiliados</p>
+          <p className="text-3xl font-bold text-secondary">{formatCurrency(totalComissoes)}</p>
+          <p className="text-xs text-muted-foreground mt-1">pagas nas vendas indicadas</p>
+        </div>
+        <div className="bg-card p-6 rounded-lg border border-border">
+          <p className="text-muted-foreground text-sm">Fica pra casa</p>
+          <p className={`text-3xl font-bold ${totalLiquido >= 0 ? 'text-foreground' : 'text-destructive'}`}>{formatCurrency(totalLiquido)}</p>
+          <p className="text-xs text-muted-foreground mt-1">arrecadado − prêmios − comissões</p>
         </div>
       </div>
 
@@ -83,6 +108,9 @@ export default async function AdminSaldoPage() {
                 <th className="px-5 py-3 text-right">Pedidos</th>
                 <th className="px-5 py-3 text-right">Jogos</th>
                 <th className="px-5 py-3 text-right">Arrecadado</th>
+                <th className="px-5 py-3 text-right">Prêmios</th>
+                <th className="px-5 py-3 text-right">Afiliados</th>
+                <th className="px-5 py-3 text-right">Líquido</th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
@@ -116,6 +144,11 @@ export default async function AdminSaldoPage() {
                     <td className="px-5 py-4 text-right font-semibold text-green-600 tabular-nums">
                       {formatCurrency(r.revenue)}
                     </td>
+                    <td className="px-5 py-4 text-right tabular-nums text-primary">{formatCurrency(r.premios)}</td>
+                    <td className="px-5 py-4 text-right tabular-nums text-secondary">{formatCurrency(r.comissao)}</td>
+                    <td className={`px-5 py-4 text-right font-semibold tabular-nums ${r.liquido >= 0 ? 'text-foreground' : 'text-destructive'}`}>
+                      {formatCurrency(r.liquido)}
+                    </td>
                     <td className="px-5 py-4 text-right">
                       <Link
                         href={`/rifas/${r.id}/gerenciar`}
@@ -128,7 +161,7 @@ export default async function AdminSaldoPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-5 py-10 text-center text-muted-foreground">
                     Nenhum sorteio cadastrado ainda.
                   </td>
                 </tr>

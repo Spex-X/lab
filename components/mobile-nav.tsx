@@ -26,6 +26,7 @@ const affiliateTabs: Item[] = [
 const adminTabs: Item[] = [
   { href: '/dashboard', label: 'Visão', icon: '📊', exact: true },
   { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
+  { href: '/admin/ganhadores', label: 'Ganhadores', icon: '🏅' },
   { href: '/admin/saldo', label: 'Saldo', icon: '💰' },
   { href: '/admin/rifas', label: 'Jogos', icon: '🎰' },
   { href: '/criar-rifa', label: 'Criar', icon: '➕' },

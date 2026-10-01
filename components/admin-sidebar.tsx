@@ -9,6 +9,7 @@ const items = [
   { href: '/admin/saldo', label: 'Saldo', icon: '💰' },
   { href: '/admin/ranking', label: 'Ranking vendedores', icon: '🏆' },
   { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
+  { href: '/admin/ganhadores', label: 'Ganhadores', icon: '🏅' },
   { href: '/admin/saques', label: 'Solicitações de saque', icon: '💸' },
   { href: '/admin/rifas', label: 'Jogos', icon: '🎰' },
   { href: '/criar-rifa', label: 'Criar jogo', icon: '➕' },

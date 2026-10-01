@@ -511,6 +511,43 @@ export default function RaffleManagePage() {
                   ) : (
                     <p className="text-sm text-muted-foreground">Nenhum jogo acertou 4 ou mais números.</p>
                   )}
+
+                  {/* Resumo de prêmios pagos */}
+                  <div className="rounded-lg border border-border bg-muted/50 p-4">
+                    <p className="text-sm font-semibold mb-3">Resumo do sorteio</p>
+                    <div className="space-y-2 text-sm">
+                      {PRIZE_TIERS.map((t) => {
+                        const n = winners.filter((x: any) => x.hits === t.hits).length
+                        const pot = tierPot(t, stats?.revenue ?? 0, raffle?.base_prize)
+                        const paid = n > 0 ? pot : 0
+                        return (
+                          <div key={t.key} className="flex items-center justify-between gap-3">
+                            <span className="text-muted-foreground">
+                              {t.label} <span className="text-xs">({t.hits} acertos · {n} {n === 1 ? 'ganhador' : 'ganhadores'})</span>
+                            </span>
+                            <span className="font-semibold tabular-nums">
+                              {n > 0 ? formatCurrency(paid) : 'sem ganhador'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                      <div className="flex items-center justify-between gap-3 pt-2 mt-1 border-t border-border font-semibold">
+                        <span>Total pago em prêmios</span>
+                        <span className="tabular-nums text-primary">
+                          {formatCurrency(
+                            PRIZE_TIERS.reduce((s, t) => {
+                              const n = winners.filter((x: any) => x.hits === t.hits).length
+                              return s + (n > 0 ? tierPot(t, stats?.revenue ?? 0, raffle?.base_prize) : 0)
+                            }, 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">Arrecadado</span>
+                        <span className="font-semibold tabular-nums">{formatCurrency(stats?.revenue ?? 0)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div>

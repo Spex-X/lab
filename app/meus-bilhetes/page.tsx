@@ -11,7 +11,7 @@ export default async function MyBetsPage() {
     .select(`
       *,
       orders!inner ( id, status, total_amount, created_at ),
-      raffles ( id, title, prize_name, prize_image, draw_date, status, ticket_price, winning_numbers )
+      raffles ( id, title, prize_name, prize_image, draw_date, status, ticket_price, winning_numbers, base_prize )
     `)
     .eq('user_id', session.user.id)
     .in('orders.status', ['paid', 'pending'])
@@ -29,6 +29,31 @@ export default async function MyBetsPage() {
     return acc
   }, {})
 
+  // Stats por sorteio via RPC (RLS impede o usuário de ver apostas/pedidos dos outros)
+  const raffleIds = Object.keys(grouped).filter((id) => id !== 'unknown')
+  const statsEntries = await Promise.all(
+    raffleIds.map(async (id) => {
+      const { data } = await supabase.rpc('get_raffle_stats', { p_raffle_id: id })
+      return [id, data] as const
+    })
+  )
+  const statsByRaffle = new Map<string, any>(statsEntries)
+
+  const tierKey = (hits: number) => (hits === 6 ? 'sena' : hits === 5 ? 'quina' : 'quadra')
+
+  // prêmio que um jogo ganhou: pote da faixa ÷ nº de ganhadores dela
+  const prizeFor = (raffle: any, hits: number) => {
+    const stats = statsByRaffle.get(raffle?.id)
+    if (!stats) return 0
+    const pot = Number(stats[`pot_${tierKey(hits)}`] ?? 0)
+    const winners = Number(stats[`winners_${tierKey(hits)}`] ?? 0)
+    return winners > 0 ? pot / winners : 0
+  }
+
+  const totalWon = paid
+    .filter((b: any) => b.hits != null && b.hits >= 4)
+    .reduce((s: number, b: any) => s + prizeFor(b.raffles, b.hits), 0)
+
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
@@ -42,7 +67,7 @@ export default async function MyBetsPage() {
           <Link href="/sorteios" className={btnPrimary}>Explorar sorteios</Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div className={`${card} p-5`}>
             <p className="text-sm text-muted-foreground mb-2">Jogos pagos</p>
             <p className="text-3xl font-semibold text-primary">{paid.length}</p>
@@ -55,7 +80,23 @@ export default async function MyBetsPage() {
             <p className="text-sm text-muted-foreground mb-2">Total investido</p>
             <p className="text-3xl font-semibold tabular-nums break-all">{formatCurrency(totalSpent, 0)}</p>
           </div>
+          <div className={`${card} p-5`}>
+            <p className="text-sm text-muted-foreground mb-2">Prêmios ganhos</p>
+            <p className={`text-3xl font-semibold tabular-nums break-all ${totalWon > 0 ? 'text-primary' : ''}`}>
+              {formatCurrency(totalWon, 0)}
+            </p>
+          </div>
         </div>
+
+        {totalWon > 0 && (
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-5 md:p-6 flex items-center gap-4">
+            <span className="text-4xl">🎉</span>
+            <div>
+              <p className="font-semibold text-lg">Você ganhou {formatCurrency(totalWon, 2)}!</p>
+              <p className="text-sm text-muted-foreground">Confira abaixo quais jogos acertaram e o valor de cada prêmio.</p>
+            </div>
+          </div>
+        )}
 
         {bets.length > 0 ? (
           <div className="space-y-4">
@@ -114,8 +155,10 @@ export default async function MyBetsPage() {
                             })}
                           </div>
                           {b.hits != null && (
-                            <span className={`text-xs font-semibold ${b.hits === 6 ? 'text-primary' : 'text-muted-foreground'}`}>
-                              {b.hits === 6 ? '🏆 Sena!' : b.hits === 5 ? '🏆 Quina!' : b.hits === 4 ? '🏆 Quadra!' : `${b.hits} acertos`}
+                            <span className={`text-xs font-semibold ${b.hits >= 4 ? 'text-primary' : 'text-muted-foreground'}`}>
+                              {b.hits >= 4
+                                ? `🏆 ${b.hits === 6 ? 'Sena' : b.hits === 5 ? 'Quina' : 'Quadra'} · ganhou ${formatCurrency(prizeFor(raffle, b.hits))}`
+                                : `${b.hits} acertos — não ganhou`}
                             </span>
                           )}
                           {b.orders?.status === 'pending' && (
@@ -139,7 +182,7 @@ export default async function MyBetsPage() {
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-border p-16 text-center">
-            <div className="text-5xl mb-4">�</div>
+            <div className="text-5xl mb-4">🎫</div>
             <h3 className="text-xl font-semibold mb-2">Você ainda não tem jogos</h3>
             <p className="text-muted-foreground mb-6">Explore os sorteios ativos e monte seu jogo de 6 números.</p>
             <Link href="/sorteios" className={btnPrimary}>Explorar sorteios</Link>
