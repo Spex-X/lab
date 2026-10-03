@@ -49,10 +49,23 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Visitante vê só login/recuperação; logado sem acesso vê home + sair
+  // Visitante vê vitrine pública + login/recuperação/cadastro;
+  // logado sem acesso vê home + sair
   const openPaths = user
     ? ['/', '/logout', '/auth', '/api/email']
-    : ['/', '/login', '/esqueci-senha', '/resetar-senha', '/auth', '/api/email']
+    : [
+        '/',
+        '/login',
+        '/cadastro-parceiro',
+        '/esqueci-senha',
+        '/resetar-senha',
+        '/auth',
+        '/api/email',
+        '/sorteios',
+        '/rifas',
+        '/resultados',
+        '/como-funciona',
+      ]
   const isOpen = openPaths.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)))
 
   if (!isOpen) {
