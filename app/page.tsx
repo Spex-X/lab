@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { PublicShell } from '@/components/public-shell'
 import { PrizeVisual } from '@/components/prize-visual'
@@ -45,53 +44,6 @@ const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
 export default async function Home() {
   const supabase = await createClient()
 
-  // Site em construção: afiliado/admin vai pro painel; o resto vê só o aviso
-  const { data: claimsData } = await supabase.auth.getClaims()
-  if (claimsData?.claims?.sub) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, is_affiliate')
-      .eq('id', claimsData.claims.sub)
-      .single()
-    if (profile?.role === 'admin' || profile?.is_affiliate) redirect('/dashboard')
-  }
-
-  return (
-    <PublicShell>
-      <main className="min-h-screen flex items-center justify-center px-4 sm:px-6">
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="w-20 h-20 rounded-3xl bg-primary/15 text-primary flex items-center justify-center text-4xl mx-auto">
-            🚧
-          </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Site em construção</h1>
-            <p className="text-muted-foreground mt-4 leading-relaxed">
-              Estamos preparando tudo com carinho. Em breve você poderá
-              participar dos sorteios por aqui.
-            </p>
-          </div>
-          {claimsData?.claims?.sub ? (
-            <Link
-              href="/logout"
-              className="inline-block px-8 py-3.5 rounded-2xl border border-border bg-card font-medium hover:bg-muted transition"
-            >
-              Sair da conta
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-block px-8 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition"
-            >
-              Acessar minha conta
-            </Link>
-          )}
-        </div>
-      </main>
-    </PublicShell>
-  )
-
-  // eslint-disable-next-line no-unreachable
-  // (modo construção ativo — ao reabrir, volta a buscar os dados abaixo)
   const [{ data: activeRaffles }, { data: paidOrders }] = await Promise.all([
     supabase
       .from('raffles')

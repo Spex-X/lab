@@ -33,8 +33,8 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Site em construção: só admin e parceiros (is_affiliate) navegam.
-  // Pra eles tudo funciona, menos a home — vai direto pro painel.
+  // Site em construção: a home é pública; só admin e parceiros
+  // (is_affiliate) navegam no resto do site.
   let canBrowse = false
   if (user) {
     const { data: profile } = await supabase
@@ -46,9 +46,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (canBrowse) {
-    if (pathname === '/') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
     return supabaseResponse
   }
 
