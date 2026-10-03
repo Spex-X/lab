@@ -31,18 +31,38 @@ export async function proxy(request: NextRequest) {
   const { data: claimsData } = await supabase.auth.getClaims()
   const user = claimsData?.claims?.sub ? claimsData.claims : null
 
-  // Proteger rotas que requerem autenticação
-  const protectedPaths = ['/dashboard', '/minhas-rifas', '/criar-rifa', '/meus-bilhetes', '/afiliados', '/suporte', '/perfil', '/divulgacao', '/saque', '/comissoes']
-  const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  const { pathname } = request.nextUrl
 
-  if (isProtectedPath && !user) {
-    const redirectUrl = new URL('/login', request.url)
-    return NextResponse.redirect(redirectUrl)
+  // Site em construção: só admin e parceiros (is_affiliate) navegam.
+  // Pra eles tudo funciona, menos a home — vai direto pro painel.
+  let canBrowse = false
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_affiliate')
+      .eq('id', user.sub)
+      .single()
+    canBrowse = profile?.role === 'admin' || !!profile?.is_affiliate
   }
 
-  // Rotas admin: aqui só exige login — o papel de admin é verificado no app/admin/layout.tsx
-  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (canBrowse) {
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return supabaseResponse
+  }
+
+  // Visitante vê só login/recuperação; logado sem acesso vê home + sair
+  const openPaths = user
+    ? ['/', '/logout', '/auth', '/api/email']
+    : ['/', '/login', '/esqueci-senha', '/resetar-senha', '/auth', '/api/email']
+  const isOpen = openPaths.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)))
+
+  if (!isOpen) {
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json({ error: 'Site em manutenção' }, { status: 503 })
+    }
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return supabaseResponse
