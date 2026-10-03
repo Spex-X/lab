@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { UserActions } from './user-actions'
 
 export default async function AdminUsersPage() {
@@ -101,12 +102,20 @@ export default async function AdminUsersPage() {
                     {new Date(user.created_at).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <UserActions
-                      userId={user.id}
-                      role={user.role}
-                      isAffiliate={!!user.is_affiliate}
-                      isSelf={user.id === currentUser.id}
-                    />
+                    <div className="flex items-center gap-2">
+                      <UserActions
+                        userId={user.id}
+                        role={user.role}
+                        isAffiliate={!!user.is_affiliate}
+                        isSelf={user.id === currentUser.id}
+                      />
+                      <Link
+                        href={`/admin/usuarios/${user.id}`}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:text-foreground transition"
+                      >
+                        Atividade
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

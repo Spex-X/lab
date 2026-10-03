@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { RefTracker } from "@/components/ref-tracker";
+import { ActivityTracker } from "@/components/activity-tracker";
 import { RecoveryRedirect } from "@/components/recovery-redirect";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Suspense fallback={null}>
           <RefTracker />
+          <ActivityTracker />
         </Suspense>
         <RecoveryRedirect />
         {children}
