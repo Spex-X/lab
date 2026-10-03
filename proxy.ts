@@ -31,32 +31,18 @@ export async function proxy(request: NextRequest) {
   const { data: claimsData } = await supabase.auth.getClaims()
   const user = claimsData?.claims?.sub ? claimsData.claims : null
 
-  const { pathname } = request.nextUrl
+  // Proteger rotas que requerem autenticação
+  const protectedPaths = ['/dashboard', '/minhas-rifas', '/criar-rifa', '/meus-bilhetes', '/afiliados', '/suporte', '/perfil', '/divulgacao', '/saque', '/comissoes']
+  const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
 
-  // Site em construção: só o admin navega.
-  // Deslogado vê só login/recuperação; logado sem ser admin cai na home ("em construção").
-  let isAdmin = false
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.sub)
-      .single()
-    isAdmin = profile?.role === 'admin'
+  if (isProtectedPath && !user) {
+    const redirectUrl = new URL('/login', request.url)
+    return NextResponse.redirect(redirectUrl)
   }
 
-  const openPaths = user
-    ? ['/', '/logout', '/auth', '/api/email'] // logado não-admin: home + sair
-    : ['/', '/login', '/esqueci-senha', '/resetar-senha', '/auth', '/api/email']
-
-  if (!isAdmin) {
-    const isOpen = openPaths.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)))
-    if (!isOpen) {
-      if (pathname.startsWith('/api')) {
-        return NextResponse.json({ error: 'Site em manutenção' }, { status: 503 })
-      }
-      return NextResponse.redirect(new URL('/', request.url))
-    }
+  // Rotas admin: aqui só exige login — o papel de admin é verificado no app/admin/layout.tsx
+  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return supabaseResponse
