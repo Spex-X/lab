@@ -115,50 +115,62 @@ export default async function Home() {
     featured.draw_date && new Date(featured.draw_date).getTime() > Date.now() ? featured.draw_date : null
 
   return (
-    <PublicShell>
+    <PublicShell
+      mobileCta={
+        <Link
+          href={featuredHref}
+          className="flex items-center justify-between gap-3 w-full px-5 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold active:opacity-90"
+        >
+          <span>Montar meu jogo</span>
+          <span className="text-sm font-medium opacity-90">
+            {formatCurrency(featured.ticket_price)} →
+          </span>
+        </Link>
+      }
+    >
       {/* HERO */}
-      <section className="pt-32 pb-16 px-4 sm:px-6 relative overflow-hidden">
+      <section className="pt-24 sm:pt-32 pb-10 sm:pb-16 px-4 sm:px-6 relative overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,oklch(0.82_0.13_174/0.14),transparent_55%)]" />
 
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-medium mb-6">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-medium mb-4 sm:mb-6">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               {raffles.length} {raffles.length === 1 ? 'campanha aberta' : 'campanhas abertas'} agora
             </span>
 
-            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
+            <h1 className="text-[2.15rem] sm:text-5xl md:text-6xl font-semibold tracking-tight leading-[1.08]">
               6 números. Um prêmio que só cresce.
             </h1>
-            <p className="text-lg text-muted-foreground mt-6 max-w-lg">
+            <p className="text-base sm:text-lg text-muted-foreground mt-4 sm:mt-6 max-w-lg">
               Escolha 6 números entre 1 e 75, pague por Pix e pronto. Acertando 4, 5 ou 6 números
               (Quadra, Quina ou Sena) você já ganha — os prêmios acumulam a cada aposta vendida.
             </p>
 
-            <div className="flex flex-wrap gap-3 mt-8">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mt-6 sm:mt-8">
               <Link
                 href={featuredHref}
-                className="px-6 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition"
+                className="text-center px-4 sm:px-6 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition"
               >
                 Concorrer agora →
               </Link>
               <Link
                 href="/como-funciona"
-                className="px-6 py-3.5 rounded-2xl border border-border bg-card font-medium hover:bg-muted transition"
+                className="text-center px-4 sm:px-6 py-3.5 rounded-2xl border border-border bg-card font-medium hover:bg-muted transition"
               >
                 Como funciona
               </Link>
             </div>
 
-            <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-border">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border">
               {[
                 { value: 'R$ 200', label: 'prêmio inicial garantido' },
                 { value: '3 faixas', label: 'Quadra, Quina e Sena' },
                 { value: '6/75', label: 'números pra cravar' },
               ].map((s) => (
                 <div key={s.label}>
-                  <p className="text-2xl md:text-3xl font-semibold tracking-tight">{s.value}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground mt-1">{s.label}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight">{s.value}</p>
+                  <p className="text-[11px] sm:text-sm text-muted-foreground mt-1 leading-snug">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -186,8 +198,8 @@ export default async function Home() {
                 Em destaque
               </span>
             </div>
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4 mb-3 sm:mb-4">
                 <h2 className="text-xl md:text-2xl font-semibold tracking-tight">{featured.title}</h2>
                 {featured.draw_date && (
                   <span className="text-sm text-muted-foreground shrink-0">
@@ -217,27 +229,29 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* SORTEIOS ABERTOS */}
-      <section className="px-4 sm:px-6 py-20 border-t border-border">
+      {/* SORTEIOS ABERTOS — carrossel deslizante no celular, grade no desktop */}
+      <section className="px-4 sm:px-6 py-12 sm:py-20 border-t border-border">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+          <div className="flex items-end justify-between gap-4 mb-6 sm:mb-10">
             <div>
               <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Sorteios abertos</h2>
-              <p className="text-muted-foreground mt-2">Escolha uma campanha e garanta seus números.</p>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Escolha uma campanha e garanta seus números.</p>
             </div>
             <Link href="/sorteios" className="text-sm font-semibold text-primary hover:underline shrink-0">
               Ver todos →
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {raffles.map((r, i) => {
               const href = r.id ? `/rifas/${r.id}` : '/sorteios'
               return (
                 <Link
                   key={r.id ?? i}
                   href={href}
-                  className="group rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition"
+                  className={`group shrink-0 snap-start sm:w-auto rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:-translate-y-0.5 transition ${
+                    raffles.length > 1 ? 'w-[85%]' : 'w-full'
+                  }`}
                 >
                   <div className="aspect-[4/3] bg-muted relative overflow-hidden">
                     {r.prize_image ? (
@@ -279,47 +293,54 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* FAIXAS DE PRÊMIO */}
-      <section className="px-4 sm:px-6 py-20 border-t border-border">
+      {/* FAIXAS DE PRÊMIO — linhas compactas no celular, cards no desktop */}
+      <section className="px-4 sm:px-6 py-12 sm:py-20 border-t border-border">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-10">
+          <div className="mb-6 sm:mb-10">
             <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Três chances de ganhar</h2>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">
               Acertou 4, 5 ou 6 números? O prêmio da faixa é dividido entre os ganhadores dela.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-3 gap-3 sm:gap-5">
             {PRIZE_TIERS.map((t) => (
               <div
                 key={t.key}
-                className={`rounded-2xl border bg-card p-6 ${
+                className={`rounded-2xl border bg-card p-4 sm:p-6 flex md:block items-center justify-between gap-4 ${
                   t.key === 'sena' ? 'border-primary/50 shadow-lg shadow-primary/10' : 'border-border'
                 }`}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-lg font-semibold">{t.label}</span>
-                  <span className="px-2.5 py-1 rounded-lg bg-primary/15 text-primary text-xs font-semibold">
-                    {t.hits} acertos
-                  </span>
-                </div>
-                <div className="flex gap-1.5 mb-6">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${
-                        i < t.hits ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {i < t.hits ? '✓' : '·'}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 md:justify-between md:mb-6">
+                    <span className="text-base sm:text-lg font-semibold">{t.label}</span>
+                    <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-primary/15 text-primary text-[11px] sm:text-xs font-semibold">
+                      {t.hits} acertos
                     </span>
-                  ))}
+                  </div>
+                  <div className="flex gap-1 sm:gap-1.5 mt-2 md:mt-0 md:mb-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`w-5 h-5 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
+                          i < t.hits ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {i < t.hits ? '✓' : '·'}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {hasReal ? `Acumulado em ${featured.title}` : 'Prêmio da faixa'}
-                </p>
-                <p className="text-2xl font-semibold tracking-tight mt-1">
-                  {formatCurrency(tierPot(t, hasReal ? revenueByRaffle.get(featured.id) : 0, featured.base_prize))}
-                </p>
+                <div className="text-right md:text-left shrink-0">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground">
+                    <span className="md:hidden">Prêmio</span>
+                    <span className="hidden md:inline">
+                      {hasReal ? `Acumulado em ${featured.title}` : 'Prêmio da faixa'}
+                    </span>
+                  </p>
+                  <p className="text-lg sm:text-2xl font-semibold tracking-tight mt-0.5 sm:mt-1 tabular-nums">
+                    {formatCurrency(tierPot(t, hasReal ? revenueByRaffle.get(featured.id) : 0, featured.base_prize))}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -327,13 +348,13 @@ export default async function Home() {
       </section>
 
       {/* COMO JOGAR */}
-      <section className="px-4 sm:px-6 py-20 border-t border-border bg-muted/30">
+      <section className="px-4 sm:px-6 py-12 sm:py-20 border-t border-border bg-muted/30">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-10">
+          <div className="mb-6 sm:mb-10">
             <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Como jogar</h2>
-            <p className="text-muted-foreground mt-2">Em menos de um minuto seu jogo está confirmado.</p>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Em menos de um minuto seu jogo está confirmado.</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {[
               {
                 icon: '🎯',
@@ -356,17 +377,17 @@ export default async function Home() {
                 desc: 'Acertou 4, 5 ou 6? O prêmio da faixa é dividido entre os ganhadores.',
               },
             ].map((s, i) => (
-              <div key={s.title} className="relative rounded-2xl border border-border bg-card p-6">
-                <span className="absolute top-5 right-5 text-xs font-mono text-muted-foreground">0{i + 1}</span>
-                <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center text-xl mb-5">
+              <div key={s.title} className="relative rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <span className="absolute top-4 right-4 sm:top-5 sm:right-5 text-[10px] sm:text-xs font-mono text-muted-foreground">0{i + 1}</span>
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-primary/15 flex items-center justify-center text-lg sm:text-xl mb-3 sm:mb-5">
                   {s.icon}
                 </div>
-                <h3 className="font-semibold mb-2">{s.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                <h3 className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 leading-snug">{s.title}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
-          <div className="mt-10">
+          <div className="mt-6 sm:mt-10">
             <Link href="/como-funciona" className="text-sm font-semibold text-primary hover:underline">
               Ver regulamento completo e perguntas frequentes →
             </Link>
@@ -376,9 +397,9 @@ export default async function Home() {
 
       {/* ÚLTIMOS GANHADORES (reais) — só aparece depois do primeiro sorteio com ganhador */}
       {recentWinners.length > 0 && (
-        <section className="px-4 sm:px-6 py-20 border-t border-border">
+        <section className="px-4 sm:px-6 py-12 sm:py-20 border-t border-border">
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Últimos ganhadores</h2>
                 <p className="text-muted-foreground mt-2">Nomes reduzidos para preservar a privacidade.</p>
@@ -427,8 +448,8 @@ export default async function Home() {
       )}
 
       {/* CONFIANÇA */}
-      <section className="px-4 sm:px-6 py-14 border-t border-border">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <section className="px-4 sm:px-6 py-10 sm:py-14 border-t border-border">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 text-center">
           {[
             { icon: '🔒', title: 'Pagamento seguro', desc: 'Pix via Mercado Pago' },
             { icon: '⚡', title: 'Confirmação na hora', desc: 'Jogo no seu nome em segundos' },
@@ -445,17 +466,17 @@ export default async function Home() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="px-4 sm:px-6 py-24 border-t border-border">
+      <section className="px-4 sm:px-6 py-14 sm:py-24 border-t border-border">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-3 sm:mb-4">
             Jogos a partir de {formatCurrency(minPrice)}
           </h2>
-          <p className="text-muted-foreground mb-10">
+          <p className="text-sm sm:text-base text-muted-foreground mb-8 sm:mb-10">
             Monte seu jogo de 6 números, pague por Pix e concorra ao prêmio acumulado. Rápido, simples e ao vivo.
           </p>
           <Link
             href="/sorteios"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-secondary text-secondary-foreground font-semibold text-lg hover:opacity-90 transition"
+            className="flex sm:inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-secondary text-secondary-foreground font-semibold text-lg hover:opacity-90 transition"
           >
             Quero participar →
           </Link>

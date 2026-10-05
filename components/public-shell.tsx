@@ -7,7 +7,18 @@ const navLinks = [
   { href: '/resultados', label: 'Resultados' },
 ]
 
-export function PublicShell({ children, active, loggedIn = false }: { children: React.ReactNode; active?: string; loggedIn?: boolean }) {
+export function PublicShell({
+  children,
+  active,
+  loggedIn = false,
+  mobileCta,
+}: {
+  children: React.ReactNode
+  active?: string
+  loggedIn?: boolean
+  // Barra fixa no rodapé, só no celular
+  mobileCta?: React.ReactNode
+}) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -71,7 +82,7 @@ export function PublicShell({ children, active, loggedIn = false }: { children: 
 
       {children}
 
-      <footer className="border-t border-border px-4 sm:px-6 py-10">
+      <footer className={`border-t border-border px-4 sm:px-6 py-10 ${mobileCta ? 'pb-28 sm:pb-10' : ''}`}>
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
@@ -87,6 +98,12 @@ export function PublicShell({ children, active, loggedIn = false }: { children: 
           </nav>
         </div>
       </footer>
+
+      {mobileCta && (
+        <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/90 backdrop-blur-xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {mobileCta}
+        </div>
+      )}
     </main>
   )
 }
