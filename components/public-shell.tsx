@@ -32,7 +32,9 @@ export function PublicShell({ children, active, loggedIn = false }: { children: 
           </div>
 
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
             {loggedIn ? (
               <Link
                 href="/dashboard"
@@ -42,6 +44,13 @@ export function PublicShell({ children, active, loggedIn = false }: { children: 
               </Link>
             ) : (
               <>
+                {/* Mobile: só "Entrar" em destaque */}
+                <Link
+                  href="/login"
+                  className="sm:hidden px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+                >
+                  Entrar
+                </Link>
                 <Link
                   href="/login"
                   className="hidden sm:inline-flex px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-muted transition"
@@ -50,7 +59,7 @@ export function PublicShell({ children, active, loggedIn = false }: { children: 
                 </Link>
                 <Link
                   href="/login?cadastro=1"
-                  className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+                  className="hidden sm:inline-flex px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
                 >
                   Cadastro
                 </Link>
