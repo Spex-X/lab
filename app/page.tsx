@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { PublicShell } from '@/components/public-shell'
 import { PrizeVisual } from '@/components/prize-visual'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
-import { prizePool } from '@/lib/prize'
+import { prizePool, tierPot, PRIZE_TIERS } from '@/lib/prize'
 
 // Vitrine usada quando ainda não há rifas cadastradas
 const showcase = [
@@ -107,7 +107,7 @@ export default async function Home() {
             <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-border">
               {[
                 { value: 'R$ 200', label: 'prêmio inicial garantido' },
-                { value: '+17%', label: 'de cada aposta vai pro prêmio' },
+                { value: '3 faixas', label: 'Quadra, Quina e Sena' },
                 { value: '6/75', label: 'números pra cravar' },
               ].map((s) => (
                 <div key={s.label}>
@@ -224,6 +224,53 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* FAIXAS DE PRÊMIO */}
+      <section className="px-4 sm:px-6 py-20 border-t border-border">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-10">
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Três chances de ganhar</h2>
+            <p className="text-muted-foreground mt-2">
+              Acertou 4, 5 ou 6 números? O prêmio da faixa é dividido entre os ganhadores dela.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {PRIZE_TIERS.map((t) => (
+              <div
+                key={t.key}
+                className={`rounded-2xl border bg-card p-6 ${
+                  t.key === 'sena' ? 'border-primary/50 shadow-lg shadow-primary/10' : 'border-border'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-lg font-semibold">{t.label}</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-primary/15 text-primary text-xs font-semibold">
+                    {t.hits} acertos
+                  </span>
+                </div>
+                <div className="flex gap-1.5 mb-6">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${
+                        i < t.hits ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {i < t.hits ? '✓' : '·'}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {hasReal ? `Acumulado em ${featured.title}` : 'Prêmio da faixa'}
+                </p>
+                <p className="text-2xl font-semibold tracking-tight mt-1">
+                  {formatCurrency(tierPot(t, hasReal ? revenueByRaffle.get(featured.id) : 0, featured.base_prize))}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* 3 PILARES */}
       <section className="px-4 sm:px-6 py-20 border-t border-border bg-muted/30">
         <div className="max-w-6xl mx-auto">
@@ -242,7 +289,7 @@ export default async function Home() {
               {
                 n: '03',
                 title: 'Prêmio que acumula',
-                desc: 'Sena começa em R$ 200 e cresce a cada aposta. Quina e Quadra também levam uma parte da arrecadação.',
+                desc: 'O prêmio começa em R$ 200 e cresce a cada aposta vendida, dividido entre Sena, Quina e Quadra.',
               },
             ].map((s) => (
               <div key={s.n}>
