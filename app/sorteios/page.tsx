@@ -5,34 +5,27 @@ import { UserShell } from '@/components/user-shell'
 import { PrizeVisual } from '@/components/prize-visual'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
 import { prizePool } from '@/lib/prize'
+import { getRevenueByRaffle } from '@/lib/raffle-revenue'
 
 const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
 
 export default async function SorteiosPage() {
   const supabase = await createClient()
 
-  // Tudo em paralelo: login (validado localmente), jogos ativos e arrecadação deles
-  const [{ data: claimsData }, { data: raffles }, { data: paidOrders }] = await Promise.all([
+  // Login (validado localmente) e jogos ativos em paralelo
+  const [{ data: claimsData }, { data: raffles }] = await Promise.all([
     supabase.auth.getClaims(),
     supabase
       .from('raffles')
       .select('*')
       .eq('status', 'active')
       .order('created_at', { ascending: false }),
-    supabase
-      .from('orders')
-      .select('raffle_id, total_amount, raffles!inner(status)')
-      .eq('raffles.status', 'active')
-      .eq('status', 'paid'),
   ])
   const user = claimsData?.claims?.sub ? claimsData.claims : null
 
   const list = raffles ?? []
 
-  const revenueByRaffle = new Map<string, number>()
-  ;(paidOrders ?? []).forEach((o: any) => {
-    revenueByRaffle.set(o.raffle_id, (revenueByRaffle.get(o.raffle_id) ?? 0) + Number(o.total_amount || 0))
-  })
+  const revenueByRaffle = await getRevenueByRaffle(supabase, list.map((r) => r.id))
 
   const content = (
     <>

@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 import Link from 'next/link'
 import { PublicShell } from '@/components/public-shell'
 import { PrizeVisual } from '@/components/prize-visual'
+import { Countdown } from '@/components/countdown'
 import { formatCurrency, formatDate } from '@/lib/get-session-user'
 import { prizePool, tierPot, PRIZE_TIERS } from '@/lib/prize'
+import { getRevenueByRaffle } from '@/lib/raffle-revenue'
 
 // Vitrine usada quando ainda não há rifas cadastradas
 const showcase = [
@@ -33,29 +36,71 @@ const showcase = [
   },
 ]
 
-const recentWinners = [
-  { numbers: '04 11 23 38 52 67', name: 'Camila R.', city: 'Fortaleza, CE', prize: 'Pix de R$ 412,50' },
-  { numbers: '02 15 29 44 58 71', name: 'Jonas M.', city: 'Curitiba, PR', prize: 'Pix de R$ 287,00' },
-  { numbers: '07 19 33 46 60 74', name: 'Rafaela S.', city: 'Belém, PA', prize: 'Pix de R$ 356,80' },
-]
+// "Camila Rodrigues" -> "Camila R." (privacidade)
+const shortName = (full?: string | null) => {
+  const parts = (full ?? '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return 'Participante'
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0]
+}
+
+// Ganhadores reais dos últimos sorteios. bets e orders têm RLS por dono,
+// então lê com a chave secreta no servidor e só devolve nome abreviado.
+async function getRecentWinners() {
+  const admin = createAdminClient()
+  if (!admin) return []
+
+  const { data: completed } = await admin
+    .from('raffles')
+    .select('id, title, base_prize, drawn_at')
+    .eq('status', 'completed')
+    .not('winning_numbers', 'is', null)
+    .order('drawn_at', { ascending: false })
+    .limit(5)
+  if (!completed?.length) return []
+
+  const ids = completed.map((r) => r.id)
+  const [{ data: bets }, revenue] = await Promise.all([
+    admin
+      .from('bets')
+      .select('numbers, hits, raffle_id, profiles(full_name)')
+      .in('raffle_id', ids)
+      .gte('hits', 4),
+    getRevenueByRaffle(admin, ids),
+  ])
+
+  const winners = (bets ?? []).map((b: any) => {
+    const raffle = completed.find((r) => r.id === b.raffle_id)!
+    const tier = PRIZE_TIERS.find((t) => t.hits === b.hits)!
+    const sameTier = (bets ?? []).filter((x: any) => x.raffle_id === b.raffle_id && x.hits === b.hits).length
+    return {
+      name: shortName(b.profiles?.full_name),
+      numbers: [...b.numbers].sort((x: number, y: number) => x - y),
+      hits: b.hits as number,
+      tier: tier.label,
+      raffle: raffle.title,
+      drawnAt: raffle.drawn_at,
+      prize: tierPot(tier, revenue.get(b.raffle_id), raffle.base_prize) / sameTier,
+    }
+  })
+
+  return winners
+    .sort((a, b) => b.hits - a.hits || +new Date(b.drawnAt) - +new Date(a.drawnAt))
+    .slice(0, 6)
+}
 
 const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
 
 export default async function Home() {
   const supabase = await createClient()
 
-  const [{ data: activeRaffles }, { data: paidOrders }] = await Promise.all([
+  const [{ data: activeRaffles }, recentWinners] = await Promise.all([
     supabase
       .from('raffles')
       .select('*')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(3),
-    supabase
-      .from('orders')
-      .select('raffle_id, total_amount, raffles!inner(status)')
-      .eq('raffles.status', 'active')
-      .eq('status', 'paid'),
+    getRecentWinners(),
   ])
 
   const hasReal = (activeRaffles?.length ?? 0) > 0
@@ -63,10 +108,11 @@ export default async function Home() {
   const featured = raffles[0]
   const featuredHref = featured.id ? `/rifas/${featured.id}` : '/sorteios'
   const minPrice = Math.min(...raffles.map((r) => Number(r.ticket_price)))
-  const revenueByRaffle = new Map<string, number>()
-  ;(paidOrders ?? []).forEach((o: any) => {
-    revenueByRaffle.set(o.raffle_id, (revenueByRaffle.get(o.raffle_id) ?? 0) + Number(o.total_amount || 0))
-  })
+  const revenueByRaffle = hasReal
+    ? await getRevenueByRaffle(supabase, activeRaffles!.map((r) => r.id))
+    : new Map<string, number>()
+  const featuredDrawSoon =
+    featured.draw_date && new Date(featured.draw_date).getTime() > Date.now() ? featured.draw_date : null
 
   return (
     <PublicShell>
@@ -157,6 +203,15 @@ export default async function Home() {
                   Prêmios acumulados: {formatCurrency(prizePool(revenueByRaffle.get(featured.id), featured.base_prize))}
                 </p>
               )}
+              {hasReal && featuredDrawSoon && (
+                <div className="mt-5 pt-5 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Sorteio em</p>
+                  <Countdown target={featuredDrawSoon} />
+                </div>
+              )}
+              <span className="mt-5 flex items-center justify-center w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold group-hover:opacity-90 transition">
+                Montar meu jogo →
+              </span>
             </div>
           </Link>
         </div>
@@ -271,31 +326,43 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 3 PILARES */}
+      {/* COMO JOGAR */}
       <section className="px-4 sm:px-6 py-20 border-t border-border bg-muted/30">
         <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="mb-10">
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Como jogar</h2>
+            <p className="text-muted-foreground mt-2">Em menos de um minuto seu jogo está confirmado.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
-                n: '01',
-                title: 'Pagamento por Pix',
-                desc: 'QR Code gerado na hora. Assim que o pagamento cai, seus jogos ficam confirmados no seu nome.',
+                icon: '🎯',
+                title: 'Escolha 6 números',
+                desc: 'Marque 6 números de 1 a 75 no volante, ou use a surpresinha.',
               },
               {
-                n: '02',
-                title: 'Sorteio ao vivo',
-                desc: 'São sorteados 6 números entre 1 e 75 ao vivo. Acertou 4, 5 ou 6? Você ganha uma parte do prêmio.',
+                icon: '⚡',
+                title: 'Pague por Pix',
+                desc: 'QR Code na hora. Caiu o pagamento, o jogo fica confirmado no seu nome.',
               },
               {
-                n: '03',
-                title: 'Prêmio que acumula',
-                desc: 'O prêmio começa em R$ 200 e cresce a cada aposta vendida, dividido entre Sena, Quina e Quadra.',
+                icon: '🎲',
+                title: 'Acompanhe o sorteio',
+                desc: 'São sorteados 6 números ao vivo. Seus acertos aparecem em "Meus jogos".',
               },
-            ].map((s) => (
-              <div key={s.n}>
-                <p className="text-sm font-mono text-primary mb-4">{s.n}</p>
-                <h3 className="text-xl font-semibold mb-3">{s.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{s.desc}</p>
+              {
+                icon: '💸',
+                title: 'Receba o prêmio',
+                desc: 'Acertou 4, 5 ou 6? O prêmio da faixa é dividido entre os ganhadores.',
+              },
+            ].map((s, i) => (
+              <div key={s.title} className="relative rounded-2xl border border-border bg-card p-6">
+                <span className="absolute top-5 right-5 text-xs font-mono text-muted-foreground">0{i + 1}</span>
+                <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center text-xl mb-5">
+                  {s.icon}
+                </div>
+                <h3 className="font-semibold mb-2">{s.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -307,30 +374,73 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ÚLTIMOS GANHADORES (resumo) */}
-      <section className="px-4 sm:px-6 py-20 border-t border-border">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Últimos ganhadores</h2>
-              <p className="text-muted-foreground mt-2">Nomes reduzidos para preservar a privacidade.</p>
-            </div>
-            <Link href="/resultados" className="text-sm font-semibold text-primary hover:underline shrink-0">
-              Ver todos os resultados →
-            </Link>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4">
-            {recentWinners.map((w) => (
-              <div key={w.numbers} className="rounded-2xl border border-border bg-card p-5">
-                <p className="font-mono text-lg font-semibold text-primary">{w.numbers}</p>
-                <p className="text-xs text-muted-foreground mb-4">Jogo premiado (6 acertos)</p>
-                <p className="font-medium">{w.name}</p>
-                <p className="text-xs text-muted-foreground">{w.city}</p>
-                <p className="text-sm font-medium mt-3 pt-3 border-t border-border">{w.prize}</p>
+      {/* ÚLTIMOS GANHADORES (reais) — só aparece depois do primeiro sorteio com ganhador */}
+      {recentWinners.length > 0 && (
+        <section className="px-4 sm:px-6 py-20 border-t border-border">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">Últimos ganhadores</h2>
+                <p className="text-muted-foreground mt-2">Nomes reduzidos para preservar a privacidade.</p>
               </div>
-            ))}
+              <Link href="/resultados" className="text-sm font-semibold text-primary hover:underline shrink-0">
+                Ver todos os resultados →
+              </Link>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {recentWinners.map((w, i) => (
+                <div key={i} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                        w.hits === 6 ? 'bg-primary text-primary-foreground' : 'bg-primary/15 text-primary'
+                      }`}
+                    >
+                      {w.hits === 6 ? '🏆 ' : ''}
+                      {w.tier} · {w.hits} acertos
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(w.drawnAt, { day: '2-digit', month: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex gap-1 mb-4">
+                    {w.numbers.map((n: number) => (
+                      <span
+                        key={n}
+                        className="w-8 h-8 rounded-full bg-muted text-xs font-semibold flex items-center justify-center tabular-nums"
+                      >
+                        {String(n).padStart(2, '0')}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="font-medium">{w.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{w.raffle}</p>
+                  <p className="text-lg font-semibold text-primary mt-3 pt-3 border-t border-border">
+                    {formatCurrency(w.prize)}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
+        </section>
+      )}
+
+      {/* CONFIANÇA */}
+      <section className="px-4 sm:px-6 py-14 border-t border-border">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+          {[
+            { icon: '🔒', title: 'Pagamento seguro', desc: 'Pix via Mercado Pago' },
+            { icon: '⚡', title: 'Confirmação na hora', desc: 'Jogo no seu nome em segundos' },
+            { icon: '📺', title: 'Sorteio transparente', desc: 'Resultados públicos' },
+            { icon: '💸', title: 'Prêmio por Pix', desc: 'Direto na sua conta' },
+          ].map((b) => (
+            <div key={b.title}>
+              <div className="text-2xl mb-2">{b.icon}</div>
+              <p className="font-semibold text-sm">{b.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{b.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 

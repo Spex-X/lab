@@ -86,14 +86,9 @@ export default function RaffleDetailPage() {
       if (raffleError) throw raffleError
       setRaffle(raffleData)
 
-      const { data: paidOrders } = await supabase
-        .from('orders')
-        .select('total_amount')
-        .eq('raffle_id', params.id)
-        .eq('status', 'paid')
-      setArrecadado(
-        (paidOrders ?? []).reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0)
-      )
+      // RPC security definer: a RLS de orders só mostra os pedidos do próprio usuário
+      const { data: stats } = await supabase.rpc('get_raffle_stats', { p_raffle_id: params.id })
+      setArrecadado(Number((stats as any)?.revenue ?? 0))
     } catch (err: any) {
       setError(err.message)
     } finally {
