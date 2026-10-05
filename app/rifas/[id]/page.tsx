@@ -294,9 +294,9 @@ export default function RaffleDetailPage() {
       <main className={`max-w-7xl mx-auto px-4 sm:px-6 py-8 ${(jogos.length > 0 || pick.length > 0 || (currentOrder && paymentStatus === 'pending')) && !showPaymentModal ? 'pb-28' : ''}`}>
         <div className="grid lg:grid-cols-[400px_1fr] gap-6">
 
-          {/* INFO */}
-          <aside className="space-y-4 lg:sticky lg:top-24 self-start">
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          {/* INFO — no celular o aside vira "contents" pra ordenar: info, números, resumo */}
+          <aside className="contents lg:block lg:space-y-4 lg:sticky lg:top-24 lg:self-start">
+            <div className="order-1 rounded-2xl border border-border bg-card overflow-hidden">
               <div className="h-52">
                 {raffle.prize_image ? (
                   <img src={raffle.prize_image} alt={raffle.prize_name} className="w-full h-full object-cover" />
@@ -364,7 +364,7 @@ export default function RaffleDetailPage() {
             </div>
 
             {/* RESUMO */}
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="order-3 rounded-2xl border border-border bg-card p-6">
               {error && (
                 <div className="mb-4 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
                   {error}
@@ -434,7 +434,7 @@ export default function RaffleDetailPage() {
           </aside>
 
           {/* GRADE */}
-          <section className="rounded-2xl border border-border bg-card p-6">
+          <section className="order-2 rounded-2xl border border-border bg-card p-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <div>
                 <h2 className="text-lg font-semibold">Escolha 6 números</h2>
