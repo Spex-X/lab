@@ -10,14 +10,13 @@ import { maskPhoneBR, toE164BR } from '@/lib/phone'
 const RESEND_SECONDS = 60
 
 // Entrar / cadastrar com código por SMS (Supabase Phone Auth).
-// Cadastro: nome + telefone (+ email opcional). Login: só telefone.
+// Cadastro: nome + telefone. Login: só telefone.
 export function PhoneAuth({ isSignUp, next }: { isSignUp: boolean; next: string }) {
   const router = useRouter()
   const supabase = createClient()
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
@@ -100,11 +99,6 @@ export function PhoneAuth({ isSignUp, next }: { isSignUp: boolean; next: string 
       })
     } catch {
       // Vinculação de parceiro não pode bloquear o login
-    }
-
-    // Email opcional do cadastro: o Supabase manda um link de confirmação pra ele
-    if (isSignUp && email.trim() && !data.user.email) {
-      supabase.auth.updateUser({ email: email.trim() }).then(() => {}, () => {})
     }
 
     router.push(next)
@@ -196,20 +190,6 @@ export function PhoneAuth({ isSignUp, next }: { isSignUp: boolean; next: string 
           required
         />
       </div>
-      {isSignUp && (
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Email <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={authInput}
-            placeholder="seu@email.com"
-          />
-        </div>
-      )}
       <button type="submit" disabled={loading} className={authButton}>
         {loading ? 'Enviando...' : 'Receber código por SMS'}
       </button>
