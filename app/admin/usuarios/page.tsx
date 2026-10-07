@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { UserActions } from './user-actions'
+import { formatPhoneBR } from '@/lib/phone'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -46,7 +47,7 @@ export default async function AdminUsersPage() {
                   Usuário
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Email
+                  Contato
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Status
@@ -80,7 +81,8 @@ export default async function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                    {user.email}
+                    {user.email || '—'}
+                    {user.phone && <div className="text-xs">{formatPhoneBR(user.phone)}</div>}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-wrap gap-1.5">

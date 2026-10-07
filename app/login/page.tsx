@@ -7,11 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { AuthShell, authInput, authButton } from '@/components/auth-shell'
-
-function getRefCookie() {
-  const match = document.cookie.match(/(?:^|;\s*)rifa_ref=([^;]+)/)
-  return match ? decodeURIComponent(match[1]) : null
-}
+import { PhoneAuth } from '@/components/phone-auth'
+import { getRefCookie } from '@/lib/ref-cookie'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -25,6 +22,9 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
   const [emailAcknowledged, setEmailAcknowledged] = useState(false)
+  const [method, setMethod] = useState<'email' | 'phone'>(() =>
+    searchParams.get('metodo') === 'celular' ? 'phone' : 'email'
+  )
   const router = useRouter()
   const supabase = createClient()
 
@@ -111,7 +111,29 @@ function LoginForm() {
         </p>
       </div>
 
-      {error && (
+      <div className="grid grid-cols-2 gap-1 p-1 mb-6 rounded-xl bg-muted border border-border">
+        {([
+          ['email', 'Email'],
+          ['phone', 'Celular'],
+        ] as const).map(([m, label]) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => {
+              setMethod(m)
+              setError('')
+              setSuccess('')
+            }}
+            className={`py-2 rounded-lg text-sm font-medium transition ${
+              method === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {method === 'email' && error && (
         <div className="mb-6 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
           {error}
         </div>
@@ -123,6 +145,9 @@ function LoginForm() {
         </div>
       )}
 
+      {method === 'phone' ? (
+        <PhoneAuth key={isSignUp ? 'signup' : 'login'} isSignUp={isSignUp} next={searchParams.get('next') || '/dashboard'} />
+      ) : (
       <form onSubmit={handleAuth} className="space-y-4">
         {isSignUp && (
           <div>
@@ -211,6 +236,7 @@ function LoginForm() {
           )}
         </button>
       </form>
+      )}
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
         {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}{' '}

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import { formatPhoneBR } from '@/lib/phone'
 
 const fmtDateTime = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('pt-BR') : '—'
@@ -50,7 +51,9 @@ export default async function AdminUserActivityPage({ params }: { params: Promis
         </div>
         <div>
           <h2 className="text-2xl font-semibold">{profile.full_name || 'Sem nome'}</h2>
-          <p className="text-sm text-muted-foreground">{profile.email}</p>
+          <p className="text-sm text-muted-foreground">
+            {[profile.email, formatPhoneBR(profile.phone ?? authUser?.phone)].filter(Boolean).join(' · ')}
+          </p>
         </div>
       </div>
 
