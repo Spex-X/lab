@@ -7,6 +7,7 @@ import { ThemeToggle } from './theme-toggle'
 const items = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊', exact: true },
   { href: '/admin/usuarios', label: 'Usuários', icon: '👥' },
+  { href: '/admin/vendas', label: 'Jogos vendidos', icon: '🎫' },
   { href: '/admin/saldo', label: 'Saldo', icon: '💰' },
   { href: '/admin/ranking', label: 'Ranking vendedores', icon: '🏆' },
   { href: '/admin/resultados', label: 'Resultados', icon: '🎲' },
