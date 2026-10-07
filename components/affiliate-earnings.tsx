@@ -6,7 +6,14 @@ import { WithdrawForm } from '@/app/afiliados/withdraw-form'
 export async function AffiliateEarnings({ userId }: { userId: string }) {
   const supabase = await createClient()
 
-  const [{ data: statsRaw }, { data: commissions }, { data: allCommissions }, { data: sales }, { data: withdrawals }] = await Promise.all([
+  const [
+    { data: statsRaw },
+    { data: commissions },
+    { data: allCommissions },
+    { data: sales },
+    { data: withdrawals },
+    { data: prizes },
+  ] = await Promise.all([
     supabase.rpc('get_affiliate_stats', { p_user_id: userId }),
     supabase
       .from('affiliate_commissions')
@@ -30,6 +37,12 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10),
+    supabase
+      .from('prize_payouts')
+      .select('id, hits, amount, created_at, raffle:raffles(title)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
   ])
   const stats = (statsRaw ?? {}) as any
 
@@ -53,6 +66,7 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
   const cards = [
     { label: 'Saldo disponível', value: formatCurrency(stats.available), accent: true },
     { label: 'Total ganho', value: formatCurrency(stats.total_earned) },
+    { label: 'Prêmios ganhos', value: formatCurrency(stats.prizes_total) },
     { label: 'Total vendido', value: formatCurrency(totalSold) },
     { label: 'Comissão direta (20%)', value: formatCurrency(directCommission) },
     { label: 'Comissões da rede (5%)', value: formatCurrency(networkCommission) },
@@ -61,13 +75,15 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
     { label: 'Sacado', value: formatCurrency(stats.withdrawn) },
   ]
 
+  const tierLabel = (hits: number) => (hits === 6 ? 'Sena' : hits === 5 ? 'Quina' : 'Quadra')
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
       <div>
         <p className="text-sm text-muted-foreground mb-2">Sistema parceria</p>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Meu saldo</h1>
         <p className="text-muted-foreground mt-2">
-          Acompanhe suas vendas, ganhos e solicite saques.
+          Acompanhe suas vendas, comissões, prêmios e solicite saques.
         </p>
       </div>
 
@@ -79,6 +95,29 @@ export async function AffiliateEarnings({ userId }: { userId: string }) {
           </div>
         ))}
       </div>
+
+      {/* PRÊMIOS */}
+      {prizes && prizes.length > 0 && (
+        <section className={`${card} overflow-hidden border-primary/40`}>
+          <div className="p-5 border-b border-border flex items-center justify-between">
+            <h3 className="font-semibold">🏆 Prêmios creditados</h3>
+            <span className="text-xs text-muted-foreground">já somados ao seu saldo</span>
+          </div>
+          <div className="divide-y divide-border">
+            {prizes.map((p: any) => (
+              <div key={p.id} className="px-5 py-4 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{p.raffle?.title ?? 'Sorteio'}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {tierLabel(p.hits)} · {p.hits} acertos · {formatDate(p.created_at)}
+                  </p>
+                </div>
+                <span className="text-primary font-semibold shrink-0 tabular-nums">+{formatCurrency(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* VENDAS PELO SEU LINK */}
       <section className={`${card} overflow-hidden`}>

@@ -89,12 +89,20 @@ export default async function MyBetsPage() {
         </div>
 
         {totalWon > 0 && (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-5 md:p-6 flex items-center gap-4">
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-5 md:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
             <span className="text-4xl">🎉</span>
-            <div>
+            <div className="flex-1">
               <p className="font-semibold text-lg">Você ganhou {formatCurrency(totalWon, 2)}!</p>
-              <p className="text-sm text-muted-foreground">Confira abaixo quais jogos acertaram e o valor de cada prêmio.</p>
+              <p className="text-sm text-muted-foreground">
+                O prêmio já está no seu saldo. Confira abaixo quais jogos acertaram.
+              </p>
             </div>
+            <Link
+              href="/saque"
+              className="shrink-0 text-center px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+            >
+              Sacar prêmio →
+            </Link>
           </div>
         )}
 

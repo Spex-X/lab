@@ -23,7 +23,7 @@ export default async function WithdrawPage() {
           <p className="text-sm text-muted-foreground mb-2">Sistema parceria</p>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Saques</h1>
           <p className="text-muted-foreground mt-2">
-            Solicite a transferência das suas comissões via PIX.
+            Solicite a transferência das suas comissões e prêmios via PIX.
           </p>
         </div>
 
