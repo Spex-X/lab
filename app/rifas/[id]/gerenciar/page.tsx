@@ -34,6 +34,9 @@ interface Order {
   total_amount: number
   created_at: string
   paid_at: string | null
+  city: string | null
+  region: string | null
+  country: string | null
   user: {
     email: string
     full_name: string | null
@@ -636,7 +639,10 @@ export default function RaffleManagePage() {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Data
+                      Data e hora
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Cidade / Estado
                     </th>
                   </tr>
                 </thead>
@@ -669,13 +675,25 @@ export default function RaffleManagePage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                          {new Date(order.created_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                          {order.city || order.region
+                            ? [order.city, order.region].filter(Boolean).join(' - ') +
+                              (order.country && order.country !== 'BR' ? ` (${order.country})` : '')
+                            : '—'}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-muted-foreground">
+                      <td colSpan={7} className="px-6 py-4 text-center text-muted-foreground">
                         Nenhum pedido encontrado
                       </td>
                     </tr>

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { createPixPayment } from '@/lib/mercado-pago'
 import { sendWelcomeEmail } from '@/lib/email'
 import { sendRecoveryLink } from '@/lib/password-reset'
@@ -177,6 +178,29 @@ export async function POST(request: Request) {
         { error: result.error },
         { status: 400 }
       )
+    }
+
+    // Local aproximado pelo IP (cabeçalhos da Vercel; vazios rodando local)
+    const geo = (name: string) => {
+      const v = request.headers.get(name)
+      if (!v) return null
+      try {
+        return decodeURIComponent(v)
+      } catch {
+        return v
+      }
+    }
+    const location = {
+      city: geo('x-vercel-ip-city'),
+      region: geo('x-vercel-ip-country-region'),
+      country: geo('x-vercel-ip-country'),
+    }
+    if (location.city || location.region || location.country) {
+      await (createAdminClient() ?? supabase)
+        .from('orders')
+        .update(location)
+        .eq('id', result.order_id)
+        .then(() => {}, (e: unknown) => console.error('Order location update failed:', e))
     }
 
     // Checkout transparente: o PIX já nasce junto com a reserva
