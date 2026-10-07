@@ -6,13 +6,11 @@ import { suggestEmailCorrection } from '@/lib/email-suggest'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AuthShell, authInput, authButton } from '@/components/auth-shell'
-
-function getRefCookie() {
-  const match = document.cookie.match(/(?:^|;\s*)rifa_ref=([^;]+)/)
-  return match ? decodeURIComponent(match[1]) : null
-}
+import { PhoneAuth } from '@/components/phone-auth'
+import { getRefCookie } from '@/lib/ref-cookie'
 
 export default function AffiliateSignupPage() {
+  const [method, setMethod] = useState<'email' | 'phone'>('phone')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -112,12 +110,36 @@ export default function AffiliateSignupPage() {
             </p>
           </div>
 
-          {error && (
+          <div className="grid grid-cols-2 gap-1 p-1 mb-6 rounded-xl bg-muted border border-border">
+            {([
+              ['phone', 'Celular'],
+              ['email', 'Email'],
+            ] as const).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setMethod(m)
+                  setError('')
+                }}
+                className={`py-2 rounded-lg text-sm font-medium transition ${
+                  method === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {method === 'email' && error && (
             <div className="mb-6 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
               {error}
             </div>
           )}
 
+          {method === 'phone' ? (
+            <PhoneAuth isSignUp next="/dashboard" />
+          ) : (
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Nome completo</label>
@@ -179,6 +201,7 @@ export default function AffiliateSignupPage() {
               {loading ? 'Cadastrando...' : 'Cadastrar como parceiro'}
             </button>
           </form>
+          )}
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Já tem conta?{' '}
