@@ -2,13 +2,11 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { UserShell } from '@/components/user-shell'
 import { AffiliateDashboard } from '@/components/affiliate-dashboard'
-import { RaffleQuickActions } from '@/components/raffle-quick-actions'
-import { getSessionUser, formatCurrency as fmt, formatDate as fmtDate } from '@/lib/get-session-user'
+import { getSessionUser, formatCurrency as fmt } from '@/lib/get-session-user'
 import { PRIZE_TIERS, TOTAL_PRIZE_RATE, DEFAULT_BASE_PRIZE, tierPot } from '@/lib/prize'
 import { card, btnPrimary } from '@/components/ui'
 
 const formatCurrency = (v: number | string | null | undefined) => fmt(v, 0)
-const formatDate = (v: string | null | undefined) => fmtDate(v, { day: '2-digit', month: 'long' })
 
 function timeAgo(value: string) {
   const diff = Math.floor((Date.now() - new Date(value).getTime()) / 60000)
@@ -19,15 +17,7 @@ function timeAgo(value: string) {
   return `há ${Math.floor(h / 24)}d`
 }
 
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-}
+
 
 export default async function DashboardPage() {
   const { supabase, session, userName, isAdmin, isAffiliate, profile } = await getSessionUser()
@@ -197,20 +187,6 @@ export default async function DashboardPage() {
     .reduce((s, c: any) => s + Number(c.amount ?? 0), 0)
   const houseNet = totalRevenue - prizeTotal - commissionTotal
 
-  const featured = activeRaffles[0]
-
-  const { data: featuredBets } = featured
-    ? await supabase
-        .from('bets')
-        .select('numbers, orders!inner(status)')
-        .eq('raffle_id', featured.id)
-        .eq('orders.status', 'paid')
-        .order('created_at', { ascending: false })
-        .limit(5)
-    : { data: [] }
-
-  const featuredJogos = (featuredBets ?? []).length
-
   return (
     <UserShell userName={userName} email={session.user.email ?? ''} isAdmin={isAdmin}>
 
@@ -317,109 +293,6 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* CAMPANHA EM DESTAQUE */}
-        {featured ? (
-          <section className="rounded-2xl border border-border bg-card p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Campanha em destaque</p>
-                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">{featured.title}</h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Sorteio {formatDate(featured.draw_date)} · jogos de 6 números (1–75) · {formatCurrency(featured.ticket_price)}
-                </p>
-              </div>
-              <Link
-                href={`/rifas/${featured.id}`}
-                className="shrink-0 px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold hover:opacity-90 transition"
-              >
-                Ver sorteio
-              </Link>
-            </div>
-
-            <p className="text-sm text-muted-foreground mb-3">
-              <span className="text-2xl font-semibold text-foreground">{featuredJogos}</span> jogos vendidos
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {(featuredBets ?? []).map((b: any, i: number) => (
-                <span key={i} className="px-3 py-1.5 rounded-lg bg-muted text-sm font-mono">
-                  {[...b.numbers].sort((a: number, z: number) => a - z).map((n: number) => String(n).padStart(2, '0')).join(' ')}
-                </span>
-              ))}
-            </div>
-          </section>
-        ) : (
-          <section className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="text-lg font-medium mb-2">Nenhum jogo ativo</p>
-            <p className="text-sm text-muted-foreground mb-6">Crie sua primeira campanha para começar a vender números.</p>
-            <Link href="/criar-rifa" className="inline-block px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
-              Criar jogo
-            </Link>
-          </section>
-        )}
-
-        {/* GRID */}
-        <div className="grid lg:grid-cols-2 gap-6">
-
-          {/* MINHAS RIFAS */}
-          <section className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-lg">Jogos criados</h3>
-              <Link href="/minhas-rifas" className="text-sm text-muted-foreground hover:text-foreground transition">
-                Ver todas
-              </Link>
-            </div>
-
-            {myRaffles.length > 0 ? (
-              <div className="space-y-2">
-                {myRaffles.slice(0, 6).map((r) => {
-                  const statusLabel: Record<string, string> = {
-                    active: 'Ativa',
-                    paused: 'Pausada',
-                    completed: 'Concluída',
-                    cancelled: 'Cancelada',
-                  }
-                  const statusColor: Record<string, string> = {
-                    active: 'text-primary',
-                    paused: 'text-warning',
-                    completed: 'text-muted-foreground',
-                    cancelled: 'text-destructive',
-                  }
-                  return (
-                    <div
-                      key={r.id}
-                      className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted transition group"
-                    >
-                      <Link
-                        href={`/rifas/${r.id}/gerenciar`}
-                        className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center font-semibold text-sm shrink-0 group-hover:bg-card"
-                      >
-                        {initials(r.title)}
-                      </Link>
-                      <Link href={`/rifas/${r.id}/gerenciar`} className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">{r.title}</p>
-                          <span className={`text-[11px] font-semibold ${statusColor[r.status] ?? ''}`}>
-                            {statusLabel[r.status] ?? r.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">jogos de 6 números · 1–75</p>
-                      </Link>
-                      <RaffleQuickActions id={r.id} title={r.title} soldCount={0} />
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-10">
-                <p className="text-sm text-muted-foreground mb-4">Você ainda não criou nenhum jogo</p>
-                <Link href="/criar-rifa" className="text-sm text-primary font-semibold hover:underline">
-                  Criar primeiro jogo
-                </Link>
-              </div>
-            )}
-          </section>
-
           {/* PEDIDOS RECENTES */}
           <section className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center justify-between mb-6">
@@ -460,7 +333,6 @@ export default async function DashboardPage() {
               <p className="text-sm text-muted-foreground text-center py-10">Nenhum pedido ainda</p>
             )}
           </section>
-        </div>
 
         <p className="text-center text-xs text-muted-foreground pt-4">
           Sorteios Rápidos · {userName}
