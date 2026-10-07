@@ -29,13 +29,17 @@ export function PhoneAuth({ isSignUp, next }: { isSignUp: boolean; next: string 
     return () => clearTimeout(t)
   }, [cooldown])
 
-  const friendly = (msg: string) => {
+  // step: 'send' (pedindo o SMS) ou 'verify' (conferindo o código)
+  const friendly = (msg: string, step: 'send' | 'verify') => {
     const m = msg.toLowerCase()
     if (m.includes('signups not allowed') || m.includes('user not found'))
       return 'Nenhuma conta com esse telefone. Toque em "Cadastre-se" para criar.'
-    if (m.includes('expired') || m.includes('invalid')) return 'Código inválido ou expirado. Confira ou peça outro.'
-    if (m.includes('rate') || m.includes('security purposes')) return 'Aguarde um pouco antes de pedir outro código.'
-    if (m.includes('phone') && m.includes('provider')) return 'Login por telefone indisponível no momento.'
+    if (m.includes('rate limit') || m.includes('security purposes'))
+      return 'Aguarde um pouco antes de pedir outro código.'
+    if (step === 'verify' && (m.includes('expired') || m.includes('invalid') || m.includes('token')))
+      return 'Código inválido ou expirado. Use o código do último SMS recebido ou peça outro.'
+    if (step === 'send' && (m.includes('provider') || m.includes('sending') || m.includes('twilio')))
+      return `Não foi possível enviar o SMS (${msg}).`
     return msg
   }
 
@@ -70,7 +74,8 @@ export function PhoneAuth({ isSignUp, next }: { isSignUp: boolean; next: string 
     setLoading(false)
 
     if (error) {
-      setError(friendly(error.message))
+      console.error('[phone-auth] send', error)
+      setError(friendly(error.message, 'send'))
       return
     }
     setSentTo(e164)
@@ -86,8 +91,9 @@ export function PhoneAuth({ isSignUp, next }: { isSignUp: boolean; next: string 
 
     const { data, error } = await supabase.auth.verifyOtp({ phone: sentTo, token: code, type: 'sms' })
     if (error || !data.user) {
+      console.error('[phone-auth] verify', error)
       setLoading(false)
-      setError(friendly(error?.message ?? 'Não foi possível validar o código'))
+      setError(friendly(error?.message ?? 'Não foi possível validar o código', 'verify'))
       return
     }
 
