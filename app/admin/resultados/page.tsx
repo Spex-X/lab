@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { PRIZE_TIERS, tierPot } from '@/lib/prize'
 
 const NUMBERS = Array.from({ length: 75 }, (_, i) => i + 1)
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 export default function AdminResultadosPage() {
   const router = useRouter()
@@ -18,6 +21,9 @@ export default function AdminResultadosPage() {
   const [drawing, setDrawing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  // Ganhadores (4+ acertos) e arrecadação de cada sorteio encerrado
+  const [winnersByRaffle, setWinnersByRaffle] = useState<Record<string, any[]>>({})
+  const [revenueByRaffle, setRevenueByRaffle] = useState<Record<string, number>>({})
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -43,11 +49,33 @@ export default function AdminResultadosPage() {
     setLoading(true)
     const { data } = await supabase
       .from('raffles')
-      .select('id, title, prize_name, status, draw_date, winning_numbers')
+      .select('id, title, prize_name, status, draw_date, winning_numbers, base_prize')
       .in('status', ['active', 'paused', 'completed'])
       .order('created_at', { ascending: false })
     setRaffles(data ?? [])
     setLoading(false)
+
+    const drawnIds = (data ?? []).filter((r) => r.winning_numbers).map((r) => r.id)
+    if (!drawnIds.length) return
+    const [{ data: bets }, stats] = await Promise.all([
+      supabase
+        .from('bets')
+        .select('id, numbers, hits, raffle_id, profiles(full_name, email)')
+        .in('raffle_id', drawnIds)
+        .gte('hits', 4)
+        .order('hits', { ascending: false }),
+      Promise.all(drawnIds.map((id) => supabase.rpc('get_raffle_stats', { p_raffle_id: id }))),
+    ])
+    const grouped: Record<string, any[]> = {}
+    ;(bets ?? []).forEach((b: any) => {
+      ;(grouped[b.raffle_id] ??= []).push(b)
+    })
+    const revenue: Record<string, number> = {}
+    stats.forEach(({ data: s }, i) => {
+      revenue[drawnIds[i]] = Number((s as any)?.revenue ?? 0)
+    })
+    setWinnersByRaffle(grouped)
+    setRevenueByRaffle(revenue)
   }
 
   const pendingDraw = raffles.filter((r) => !r.winning_numbers && r.status !== 'completed')
@@ -216,10 +244,10 @@ export default function AdminResultadosPage() {
                     <p className="text-xs text-muted-foreground">{r.prize_name}</p>
                   </div>
                   <Link
-                    href={`/rifas/${r.id}/gerenciar`}
-                    className="text-blue-600 hover:underline text-xs font-medium shrink-0"
+                    href="/admin/ganhadores"
+                    className="text-primary hover:underline text-xs font-medium shrink-0"
                   >
-                    Ver ganhadores
+                    Todos os ganhadores →
                   </Link>
                 </div>
                 <div className="flex gap-1.5 mt-3">
@@ -232,6 +260,42 @@ export default function AdminResultadosPage() {
                     </span>
                   ))}
                 </div>
+
+                {(() => {
+                  const ws = winnersByRaffle[r.id] ?? []
+                  if (!ws.length) {
+                    return <p className="text-xs text-muted-foreground mt-3">Nenhum ganhador (4+ acertos) nesse sorteio.</p>
+                  }
+                  return (
+                    <div className="mt-4 pt-3 border-t border-border space-y-1.5">
+                      {ws.map((w: any) => {
+                        const tier = PRIZE_TIERS.find((t) => t.hits === w.hits)
+                        const n = ws.filter((x: any) => x.hits === w.hits).length
+                        const prize = tier ? tierPot(tier, revenueByRaffle[r.id], r.base_prize) / Math.max(n, 1) : 0
+                        return (
+                          <div key={w.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+                            <span className="font-medium text-foreground">
+                              {w.profiles?.full_name || w.profiles?.email || 'Participante'}
+                              {w.profiles?.full_name && (
+                                <span className="text-xs text-muted-foreground font-normal"> · {w.profiles.email}</span>
+                              )}
+                            </span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {[...w.numbers]
+                                .sort((a: number, b: number) => a - b)
+                                .map((x: number) => String(x).padStart(2, '0'))
+                                .join(' ')}
+                            </span>
+                            <span className={`font-semibold tabular-nums ${w.hits === 6 ? 'text-primary' : 'text-foreground'}`}>
+                              {w.hits === 6 ? '🏆 ' : ''}
+                              {tier?.label} ({w.hits}) · {formatCurrency(prize)}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             ))}
           </div>

@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
+import { getRevenueByRaffle } from '@/lib/raffle-revenue'
 import { PublicShell } from '@/components/public-shell'
 import { formatDate, formatCurrency } from '@/lib/get-session-user'
 import { PRIZE_TIERS, tierPot } from '@/lib/prize'
@@ -10,7 +12,12 @@ export default async function ResultadosPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: completed } = await supabase
+  // A RLS só mostra rifas ativas e as próprias apostas de cada um, então
+  // sorteios encerrados e ganhadores são lidos com a chave secreta no
+  // servidor — expondo só nome abreviado.
+  const reader = createAdminClient() ?? supabase
+
+  const { data: completed } = await reader
     .from('raffles')
     .select('id, title, prize_name, prize_image, draw_date, winning_numbers, drawn_at, base_prize')
     .eq('status', 'completed')
@@ -20,28 +27,25 @@ export default async function ResultadosPage() {
 
   // Ganhadores: Sena (6), Quina (5) e Quadra (4)
   const raffleIds = (completed ?? []).map((r) => r.id)
-  const { data: topBets } = raffleIds.length
-    ? await supabase
-        .from('bets')
-        .select('numbers, hits, raffle_id, profiles(full_name)')
-        .in('raffle_id', raffleIds)
-        .gte('hits', 4)
-        .order('hits', { ascending: false })
-        .limit(60)
-    : { data: [] }
+  const [{ data: rawBets }, revenueByRaffle] = raffleIds.length
+    ? await Promise.all([
+        reader
+          .from('bets')
+          .select('numbers, hits, raffle_id, profiles(full_name)')
+          .in('raffle_id', raffleIds)
+          .gte('hits', 4)
+          .order('hits', { ascending: false })
+          .limit(60),
+        getRevenueByRaffle(supabase, raffleIds),
+      ])
+    : [{ data: [] as any[] }, new Map<string, number>()]
 
-  // Arrecadação de cada sorteio pra calcular os potes das faixas
-  const { data: paidOrders } = raffleIds.length
-    ? await supabase
-        .from('orders')
-        .select('raffle_id, total_amount')
-        .in('raffle_id', raffleIds)
-        .eq('status', 'paid')
-    : { data: [] }
-  const revenueByRaffle = new Map<string, number>()
-  ;(paidOrders ?? []).forEach((o: any) => {
-    revenueByRaffle.set(o.raffle_id, (revenueByRaffle.get(o.raffle_id) ?? 0) + Number(o.total_amount))
-  })
+  const shortName = (full?: string | null) => {
+    const parts = (full ?? '').trim().split(/\s+/).filter(Boolean)
+    if (!parts.length) return 'Participante'
+    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0]
+  }
+  const topBets = (rawBets ?? []).map((b: any) => ({ ...b, profiles: { full_name: shortName(b.profiles?.full_name) } }))
 
   const winnersByRaffle = new Map<string, any[]>()
   ;(topBets ?? []).forEach((b: any) => {
