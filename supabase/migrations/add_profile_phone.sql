@@ -1,4 +1,4 @@
-/* Telefone no perfil (login por SMS). Copiado de auth.users automaticamente. */
+-- Telefone no perfil (login por SMS). Copiado de auth.users automaticamente.
 alter table profiles add column if not exists phone text;
 
 create or replace function sync_profile_contact()
@@ -17,14 +17,14 @@ begin
 end;
 $$;
 
-/* Nome começa com "on_auth_user_s..." pra rodar depois de on_auth_user_created
-   (Postgres dispara triggers em ordem alfabética), quando o perfil já existe. */
+-- Nome começa com "on_auth_user_s..." pra rodar depois de on_auth_user_created
+-- (Postgres dispara triggers em ordem alfabética), quando o perfil já existe.
 drop trigger if exists on_auth_user_sync_contact on auth.users;
 create trigger on_auth_user_sync_contact
   after insert or update of phone, email on auth.users
   for each row execute function sync_profile_contact();
 
-/* Preenche quem já existe */
+-- Preenche quem já existe
 update profiles p
 set phone = u.phone
 from auth.users u

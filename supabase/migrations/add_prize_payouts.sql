@@ -1,8 +1,8 @@
-/* Prêmios creditados no saldo do ganhador.
-   Rode DEPOIS de add_affiliate_system.sql e add_bets_system.sql — este arquivo
-   redefine draw_raffle, get_affiliate_stats e request_withdrawal. */
+-- Prêmios creditados no saldo do ganhador.
+-- Rode DEPOIS de add_affiliate_system.sql e add_bets_system.sql — este arquivo
+-- redefine draw_raffle, get_affiliate_stats e request_withdrawal.
 
-/* ETAPA 1: tabela de prêmios (1 linha por jogo premiado) */
+-- ETAPA 1: tabela de prêmios (1 linha por jogo premiado)
 create table if not exists prize_payouts (
   id uuid default gen_random_uuid() primary key,
   raffle_id uuid references raffles(id) on delete cascade not null,
@@ -26,10 +26,10 @@ drop policy if exists "Admins view all prizes" on prize_payouts;
 create policy "Admins view all prizes" on prize_payouts
   for select using (is_admin());
 
-/* ETAPA 2: credita os prêmios de um sorteio encerrado.
-   Pote da faixa = fatia do valor inicial + % da arrecadação paga,
-   dividido igualmente entre os jogos da faixa (arredonda pra baixo no centavo).
-   Idempotente: bet_id é único, rodar de novo não duplica. */
+-- ETAPA 2: credita os prêmios de um sorteio encerrado.
+-- Pote da faixa = fatia do valor inicial + % da arrecadação paga,
+-- dividido igualmente entre os jogos da faixa (arredonda pra baixo no centavo).
+-- Idempotente: bet_id é único, rodar de novo não duplica.
 create or replace function credit_raffle_prizes(p_raffle_id uuid)
 returns integer
 language plpgsql
@@ -75,10 +75,10 @@ begin
 end;
 $$;
 
-/* Só roda por dentro do draw_raffle (ou pelo SQL Editor) — ninguém chama pela API */
+-- Só roda por dentro do draw_raffle (ou pelo SQL Editor) — ninguém chama pela API
 revoke execute on function credit_raffle_prizes(uuid) from public, anon, authenticated;
 
-/* ETAPA 3: draw_raffle agora credita os prêmios ao encerrar */
+-- ETAPA 3: draw_raffle agora credita os prêmios ao encerrar
 create or replace function draw_raffle(
   p_raffle_id uuid,
   p_winning_numbers smallint[]
@@ -142,7 +142,7 @@ begin
   from bets b join orders o on b.order_id = o.id
   where b.raffle_id = p_raffle_id and o.status = 'paid';
 
-  /* Ganha a partir de 4 acertos (Quadra, Quina, Sena) */
+  -- Ganha a partir de 4 acertos (Quadra, Quina, Sena)
   select count(*) into v_winners
   from bets where raffle_id = p_raffle_id and hits >= 4;
 
@@ -163,7 +163,7 @@ exception
 end;
 $$;
 
-/* ETAPA 4: saldo = comissões + prêmios − saques. Só o dono (ou admin) consulta. */
+-- ETAPA 4: saldo = comissões + prêmios − saques. Só o dono (ou admin) consulta.
 create or replace function get_affiliate_stats(p_user_id uuid)
 returns json
 language plpgsql
@@ -225,7 +225,7 @@ begin
 end;
 $$;
 
-/* ETAPA 5: saque só do próprio saldo */
+-- ETAPA 5: saque só do próprio saldo
 create or replace function request_withdrawal(p_user_id uuid, p_amount numeric, p_pix_key text)
 returns json
 language plpgsql
@@ -248,7 +248,7 @@ begin
     return json_build_object('error', 'Informe uma chave PIX válida');
   end if;
 
-  /* Trava por usuário: dois pedidos simultâneos não sacam o mesmo saldo */
+  -- Trava por usuário: dois pedidos simultâneos não sacam o mesmo saldo
   perform pg_advisory_xact_lock(hashtext('withdrawal:' || p_user_id::text));
 
   v_stats := get_affiliate_stats(p_user_id);
@@ -269,7 +269,7 @@ exception
 end;
 $$;
 
-/* ETAPA 6: credita os sorteios que já foram encerrados antes desta migration */
+-- ETAPA 6: credita os sorteios que já foram encerrados antes desta migration
 do $$
 declare r record;
 begin
