@@ -33,39 +33,22 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Site em construção: a home é pública; só admin e parceiros
-  // (is_affiliate) navegam no resto do site.
-  let canBrowse = false
+  // Modo manutenção: logado navega em tudo. Visitante só vê a home
+  // (tela de manutenção) e as rotas de login — que não têm link em lugar nenhum.
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, is_affiliate')
-      .eq('id', user.sub)
-      .single()
-    canBrowse = profile?.role === 'admin' || !!profile?.is_affiliate
-  }
-
-  if (canBrowse) {
     return supabaseResponse
   }
 
-  // Visitante vê vitrine pública + login/recuperação/cadastro;
-  // logado sem acesso vê home + sair
-  const openPaths = user
-    ? ['/', '/logout', '/auth', '/api/email']
-    : [
-        '/',
-        '/login',
-        '/cadastro-parceiro',
-        '/esqueci-senha',
-        '/resetar-senha',
-        '/auth',
-        '/api/email',
-        '/sorteios',
-        '/rifas',
-        '/resultados',
-        '/como-funciona',
-      ]
+  const openPaths = [
+    '/',
+    '/login',
+    '/esqueci-senha',
+    '/resetar-senha',
+    '/auth',
+    '/api/email',
+    '/api/auth',
+    '/api/activity',
+  ]
   const isOpen = openPaths.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)))
 
   if (!isOpen) {

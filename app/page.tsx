@@ -93,6 +93,26 @@ const fmtInt = (n: number) => new Intl.NumberFormat('pt-BR').format(n)
 export default async function Home() {
   const supabase = await createClient()
 
+  // Modo manutenção: visitante vê só o aviso, sem link pro login
+  const { data: claimsData } = await supabase.auth.getClaims()
+  if (!claimsData?.claims?.sub) {
+    return (
+      <main className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="w-20 h-20 rounded-3xl bg-primary/15 text-primary flex items-center justify-center text-4xl mx-auto">
+            🛠️
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Site em manutenção</h1>
+            <p className="text-muted-foreground mt-4 leading-relaxed">
+              Estamos fazendo melhorias. Voltamos em breve.
+            </p>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   const [{ data: activeRaffles }, recentWinners] = await Promise.all([
     supabase
       .from('raffles')
